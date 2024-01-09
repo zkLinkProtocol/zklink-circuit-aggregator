@@ -12,5 +12,5 @@ pub use sync_vm::utils; // for cs_derive proc macro
 pub use final_aggregation::*;
 pub use oracle_aggregation::*;
 
-pub(crate) type UniformCircuit<E> = MainCircuit<E, MainGate>;
-pub(crate) type UniformProof<E> = Proof<E, UniformCircuit<E>>;
+pub type UniformCircuit<E> = MainCircuit<E, MainGate>;
+pub type UniformProof<E> = Proof<E, UniformCircuit<E>>;
