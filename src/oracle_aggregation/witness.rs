@@ -13,9 +13,11 @@ use std::collections::BTreeMap;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use sync_vm::glue::optimizable_queue::simulate_variable_length_hash;
 use sync_vm::recursion::aggregation::VkInRns;
-use sync_vm::recursion::node_aggregation::NodeAggregationOutputData;
+use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::traits::*;
 use sync_vm::vm::structural_eq::*;
+
+pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
 
 #[derive(Derivative, serde::Serialize, serde::Deserialize)]
 #[derivative(Clone, Debug)]
@@ -30,6 +32,24 @@ pub struct OracleAggregationCircuit<E: Engine> {
 }
 
 impl<E: Engine> OracleAggregationCircuit<E> {
+    pub fn circuit_default(agg_num: usize) -> Self {
+        assert!(agg_num <= 35);
+        Self {
+            oracle_inputs_data: vec![
+                <OracleOutputData<E> as CSWitnessable<E>>::placeholder_witness(
+                );
+                agg_num
+            ],
+            aggregation_type_set: vec![Default::default(); agg_num],
+            proof_witnesses: vec![UniformProof::empty(); agg_num],
+            vks_commitments_set: vec![Default::default(); ORACLE_CIRCUIT_TYPES_NUM],
+            vk_encoding_witnesses: vec![
+                vec![Default::default(); VK_ENCODING_LENGTH];
+                ORACLE_CIRCUIT_TYPES_NUM
+            ],
+        }
+    }
+
     pub fn generate<
         C: CircuitArithmeticRoundFunction<E, A_WIDTH, S_WIDTH>,
         const A_WIDTH: usize,
@@ -157,4 +177,10 @@ pub enum OracleAggregationType {
     Aggregation3 = 3,
     Aggregation4 = 4,
     Aggregation5 = 5,
+}
+
+impl Default for OracleAggregationType {
+    fn default() -> Self {
+        Self::AggregationNull
+    }
 }

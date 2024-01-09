@@ -1,7 +1,7 @@
 use crate::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use crate::bellman::SynthesisError;
 use crate::oracle_aggregation::OracleAggregationInputDataWitness;
-use crate::UniformProof;
+use crate::{OracleAggregationInputData, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
 use franklin_crypto::bellman::Engine;
@@ -9,7 +9,7 @@ use franklin_crypto::plonk::circuit::allocated_num::Num;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use sync_vm::glue::optimizable_queue::commit_encodable_item;
-use sync_vm::recursion::node_aggregation::NodeAggregationOutputData;
+use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::recursion::recursion_tree::NUM_LIMBS;
 use sync_vm::traits::*;
 use sync_vm::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
@@ -30,6 +30,29 @@ pub struct FinalAggregationCircuitInstanceWitness<E: Engine> {
     pub block_proof_witness: UniformProof<E>,
     #[derivative(Debug = "ignore")]
     pub oracle_proof_witnesses: Vec<UniformProof<E>>,
+}
+
+impl<E: Engine> FinalAggregationCircuitInstanceWitness<E> {
+    pub fn circuit_default(oracle_agg_num: usize) -> Self {
+        assert!(oracle_agg_num <= 17);
+        Self {
+            block_aggregation_result:
+                <BlockAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness(),
+            oracle_aggregation_results:
+                vec![
+                    <OracleAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness();
+                    oracle_agg_num
+                ],
+
+            oracle_vk_encoding_witness: vec![Default::default(); VK_ENCODING_LENGTH],
+            oracle_vk_commitment: Default::default(),
+            block_vk_encoding_witness: vec![Default::default(); VK_ENCODING_LENGTH],
+            block_vk_commitment: Default::default(),
+
+            block_proof_witness: UniformProof::empty(),
+            oracle_proof_witnesses: vec![UniformProof::empty(); oracle_agg_num],
+        }
+    }
 }
 
 #[derive(

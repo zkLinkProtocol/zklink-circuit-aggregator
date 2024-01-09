@@ -1682,7 +1682,3 @@ dependencies = [
  "sha2 0.10.6",
  "sha3 0.10.6",
 ]
-
-[[package]]
-name = "zknevermore"
-version = "0.1.0"
