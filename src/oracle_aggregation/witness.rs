@@ -118,7 +118,6 @@ impl<E: Engine> OracleAggregationCircuit<E> {
 pub struct OracleAggregationInputData<E: Engine> {
     pub oracle_vks_hash: Num<E>,
     pub guardian_set_hash: Num<E>,
-    pub old_price_commitment: Num<E>,
     pub final_price_commitment: Num<E>,
     pub earliest_publish_time: Num<E>,
     pub aggregation_output_data: NodeAggregationOutputData<E>,
@@ -129,7 +128,6 @@ impl<E: Engine> CircuitEmpty<E> for OracleAggregationInputData<E> {
         Self {
             oracle_vks_hash: Num::zero(),
             guardian_set_hash: Num::zero(),
-            old_price_commitment: Num::zero(),
             final_price_commitment: Num::zero(),
             earliest_publish_time: Num::zero(),
             aggregation_output_data: CircuitEmpty::empty(),
@@ -151,7 +149,6 @@ impl<E: Engine> CircuitEmpty<E> for OracleAggregationInputData<E> {
 #[derivative(Clone, Debug)]
 pub struct OracleOutputData<E: Engine> {
     pub guardian_set_hash: Num<E>,
-    pub old_price_commitment: Num<E>,
     pub final_price_commitment: Num<E>,
     pub earliest_publish_time: Num<E>,
 }
@@ -160,7 +157,6 @@ impl<E: Engine> CircuitEmpty<E> for OracleOutputData<E> {
     fn empty() -> Self {
         Self {
             guardian_set_hash: Num::zero(),
-            old_price_commitment: Num::zero(),
             final_price_commitment: Num::zero(),
             earliest_publish_time: Num::zero(),
         }
@@ -188,7 +184,7 @@ impl From<usize> for OracleAggregationType {
             3 => Self::Aggregation3,
             4 => Self::Aggregation4,
             5 => Self::Aggregation5,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }

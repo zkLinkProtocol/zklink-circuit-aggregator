@@ -5,7 +5,7 @@ use crate::final_aggregation::witness::{
 use crate::oracle_aggregation::OracleAggregationInputData;
 use crate::padding::PaddingCryptoComponent;
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
-use franklin_crypto::bellman::{Engine, Field, SynthesisError};
+use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
@@ -23,6 +23,10 @@ use sync_vm::recursion::transcript::TranscriptGadget;
 use sync_vm::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
 use sync_vm::rescue_poseidon::HashParams;
 use sync_vm::traits::{CSAllocatable, CircuitEmpty};
+use sync_vm::vm::primitives::small_uints::IntoFr;
+
+const MAX_AGGREGATE_NUM: u8 = 5 * 36;
+const GUARDIAN_SET_INDEX: u8 = 0;
 
 pub fn final_aggregation<
     E: Engine,
@@ -109,21 +113,21 @@ pub fn final_aggregation<
     let mut oracle_price_commitment = Num::zero();
     let mut last_oracle_vk_hash = Num::zero();
     let mut last_oracle_input_data = OracleAggregationInputData::empty();
+    let mut used_pyth_num = Num::zero();
     for (oracle_idx, single_oracle_data) in oracle_aggregation_data.into_iter().enumerate() {
+        let is_padding = Num::equals(cs, &single_oracle_data.final_price_commitment, &Num::zero())?;
+        let temp_used_pyth_num =
+            used_pyth_num.add(cs, &Num::Constant(IntoFr::<E>::into_fr(MAX_AGGREGATE_NUM)))?;
+        used_pyth_num =
+            Num::conditionally_select(cs, &is_padding, &used_pyth_num, &temp_used_pyth_num)?;
+
         if oracle_idx == 0 {
             oracle_price_commitment = single_oracle_data.final_price_commitment;
         } else {
             last_oracle_vk_hash.enforce_equal(cs, &single_oracle_data.oracle_vks_hash)?;
-            oracle_price_commitment = match oracle_price_commitment {
-                Num::Variable(num) => Num::Variable(num.square(cs)?.add(
-                    cs,
-                    &single_oracle_data.final_price_commitment.get_variable(),
-                )?),
-                Num::Constant(mut num) => Num::Constant({
-                    num.square();
-                    num
-                }),
-            };
+            oracle_price_commitment = oracle_price_commitment
+                .square(cs)?
+                .add(cs, &single_oracle_data.final_price_commitment)?;
             single_oracle_data
                 .guardian_set_hash
                 .enforce_equal(cs, &last_oracle_input_data.guardian_set_hash)?;
@@ -191,6 +195,8 @@ pub fn final_aggregation<
         vks_commitment,
         blocks_commitments: block_aggregation_data.blocks_commitments,
         oracle_data: OracleOnChainData {
+            used_pyth_num,
+            guardian_set_index: Num::Constant(IntoFr::<E>::into_fr(GUARDIAN_SET_INDEX)),
             guardian_set_hash: first_oracle_agg_data.guardian_set_hash,
             earliest_publish_time: first_oracle_agg_data.earliest_publish_time,
         },

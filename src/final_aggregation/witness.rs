@@ -38,8 +38,7 @@ impl<E: Engine> FinalAggregationCircuitInstanceWitness<E> {
         Self {
             block_aggregation_result:
                 <BlockAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness(),
-            oracle_aggregation_results:
-                vec![
+            oracle_aggregation_results: vec![
                     <OracleAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness();
                     oracle_agg_num
                 ],
@@ -147,6 +146,8 @@ pub struct VksCompositionData<E: Engine> {
 )]
 #[derivative(Clone, Debug)]
 pub struct OracleOnChainData<E: Engine> {
+    pub used_pyth_num: Num<E>,
+    pub guardian_set_index: Num<E>,
     pub guardian_set_hash: Num<E>,
     pub earliest_publish_time: Num<E>,
 }

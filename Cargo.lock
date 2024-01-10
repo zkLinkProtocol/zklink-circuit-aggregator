@@ -570,7 +570,7 @@ dependencies = [
 [[package]]
 name = "franklin-crypto"
 version = "0.0.5"
-source = "git+https://github.com/zkLinkProtocol/franklin-crypto?branch=dev#5695d07c7bc604c2c39a27712ffac171d39ee1ed"
+source = "git+https://github.com/zkLinkProtocol/franklin-crypto?branch=dev#23beb1b8bd7c8b66054c81e3693e37ecff4e93aa"
 dependencies = [
  "arr_macro",
  "bellman_ce",

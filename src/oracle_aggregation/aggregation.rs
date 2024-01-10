@@ -98,7 +98,6 @@ pub fn aggregate_oracle_proof<
     let mut used_key_commitments = Vec::with_capacity(num_proofs_to_aggregate);
     let mut inputs = Vec::with_capacity(num_proofs_to_aggregate);
     let (mut guardian_set_hash, mut is_correct_guardian_set_hash) = (Num::zero(), vec![]);
-    let (mut old_price_commitment, mut is_correct_price_commitment) = (Num::zero(), vec![]);
     let mut final_price_commitment = Num::zero();
     let (mut earliest_publish_time, mut is_correct_earliest_publish_time) = (Num::zero(), vec![]);
     let mut last_oracle_input_data = OracleOutputData::empty();
@@ -138,18 +137,12 @@ pub fn aggregate_oracle_proof<
 
         guardian_set_hash = oracle_input_data.guardian_set_hash;
         if proof_idx == 0 {
-            old_price_commitment = oracle_input_data.old_price_commitment;
             earliest_publish_time = oracle_input_data.earliest_publish_time;
         } else {
             is_correct_guardian_set_hash.push(Num::equals(
                 cs,
                 &last_oracle_input_data.guardian_set_hash,
                 &oracle_input_data.guardian_set_hash,
-            )?);
-            is_correct_price_commitment.push(Num::equals(
-                cs,
-                &last_oracle_input_data.final_price_commitment,
-                &oracle_input_data.old_price_commitment,
             )?);
             let (is_equal, is_greater) = prepacked_long_comparison(
                 cs,
@@ -160,11 +153,14 @@ pub fn aggregate_oracle_proof<
             let is_equal_or_greater = Boolean::or(cs, &is_equal, &is_greater)?;
             is_correct_earliest_publish_time.push(is_equal_or_greater);
         }
+        let acc_price_commitment = final_price_commitment
+            .square(cs)?
+            .add(cs, &oracle_input_data.final_price_commitment)?;
         final_price_commitment = Num::conditionally_select(
             cs,
             &is_padding,
             &final_price_commitment,
-            &oracle_input_data.final_price_commitment,
+            &acc_price_commitment,
         )?;
 
         used_key_commitments.push(vk_commitment_to_use);
@@ -175,14 +171,8 @@ pub fn aggregate_oracle_proof<
     assert_eq!(used_key_commitments.len(), num_proofs_to_aggregate);
     let is_correct_guardian_set_hash = smart_or(cs, &is_correct_guardian_set_hash)?;
     Boolean::enforce_equal(cs, &is_correct_guardian_set_hash, &Boolean::constant(true))?;
-    let is_correct_price_commitment = smart_or(cs, &is_correct_price_commitment)?;
-    Boolean::enforce_equal(cs, &is_correct_price_commitment, &Boolean::constant(true))?;
-    let is_correct_earliest_publish_time = smart_or(cs, &is_correct_earliest_publish_time)?;
-    Boolean::enforce_equal(
-        cs,
-        &is_correct_earliest_publish_time,
-        &Boolean::constant(true),
-    )?;
+    let is_earliest_publish_time = smart_or(cs, &is_correct_earliest_publish_time)?;
+    Boolean::enforce_equal(cs, &is_earliest_publish_time, &Boolean::constant(true))?;
 
     // do actual aggregation work
     let [[pair_with_generator_x, pair_with_generator_y], [pair_with_x_x, pair_with_x_y]] =
@@ -211,7 +201,6 @@ pub fn aggregate_oracle_proof<
     let input_data = OracleAggregationInputData {
         oracle_vks_hash,
         guardian_set_hash,
-        old_price_commitment,
         final_price_commitment,
         earliest_publish_time,
         aggregation_output_data: NodeAggregationOutputData {
