@@ -179,6 +179,20 @@ pub enum OracleAggregationType {
     Aggregation5 = 5,
 }
 
+impl From<usize> for OracleAggregationType {
+    fn from(value: usize) -> Self {
+        match value {
+            0 => Self::AggregationNull,
+            1 => Self::Aggregation1,
+            2 => Self::Aggregation2,
+            3 => Self::Aggregation3,
+            4 => Self::Aggregation4,
+            5 => Self::Aggregation5,
+            _ => unreachable!()
+        }
+    }
+}
+
 impl Default for OracleAggregationType {
     fn default() -> Self {
         Self::AggregationNull
