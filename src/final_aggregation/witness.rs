@@ -1,14 +1,11 @@
-use crate::bellman::plonk::better_better_cs::cs::{ConstraintSystem, VerificationKey};
-use crate::bellman::SynthesisError;
 use crate::oracle_aggregation::OracleAggregationInputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
-use crate::{
-    OracleAggregationInputData, UniformCircuit,
-    UniformProof,
-};
+use crate::{OracleAggregationInputData, UniformCircuit, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
-use franklin_crypto::bellman::Engine;
+use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
+use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::Num;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;

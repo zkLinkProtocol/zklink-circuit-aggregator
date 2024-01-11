@@ -1,4 +1,4 @@
-use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, VerificationKey};
+use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
     BlockAggregationInputData, FinalAggregationCircuitInstanceWitness, FinalAggregationInputData,
@@ -8,6 +8,7 @@ use crate::oracle_aggregation::OracleAggregationInputData;
 use crate::UniformProof;
 use franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
 use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
 use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
