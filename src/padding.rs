@@ -1,6 +1,6 @@
 use crate::{UniformCircuit, UniformProof};
 use franklin_crypto::bellman::plonk::better_better_cs;
-use franklin_crypto::bellman::plonk::better_better_cs::cs::VerificationKey;
+use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
 use franklin_crypto::bellman::Engine;
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
