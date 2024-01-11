@@ -1,15 +1,19 @@
-use crate::bellman::plonk::better_better_cs::cs::ConstraintSystem;
+use crate::bellman::plonk::better_better_cs::cs::{ConstraintSystem, VerificationKey};
 use crate::bellman::SynthesisError;
 use crate::oracle_aggregation::OracleAggregationInputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
-use crate::{OracleAggregationInputData, UniformProof};
+use crate::{
+    OracleAggregationInputData, UniformCircuit,
+    UniformProof,
+};
 use cs_derive::*;
 use derivative::Derivative;
 use franklin_crypto::bellman::Engine;
 use franklin_crypto::plonk::circuit::allocated_num::Num;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use sync_vm::glue::optimizable_queue::commit_encodable_item;
+use sync_vm::glue::optimizable_queue::{commit_encodable_item, simulate_variable_length_hash};
+use sync_vm::recursion::aggregation::VkInRns;
 use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::recursion::recursion_tree::NUM_LIMBS;
 use sync_vm::testing::Bn256;
@@ -50,6 +54,51 @@ impl FinalAggregationCircuitInstanceWitness<'_, Bn256> {
 
             block_proof_witness: UniformProof::empty(),
             oracle_proof_witnesses: vec![UniformProof::empty(); oracle_agg_num],
+            params: &COMMON_CRYPTO_PARAMS,
+        }
+    }
+
+    pub fn generate(
+        block_aggregation_result: BlockAggregationInputDataWitness<Bn256>,
+        oracle_aggregation_results: Vec<OracleAggregationInputDataWitness<Bn256>>,
+        oracle_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
+        block_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
+        block_proof_witness: UniformProof<Bn256>,
+        oracle_proof_witnesses: Vec<UniformProof<Bn256>>,
+    ) -> Self {
+        assert_eq!(
+            oracle_aggregation_results.len(),
+            oracle_proof_witnesses.len()
+        );
+
+        let commit_function = COMMON_CRYPTO_PARAMS.poseidon_hash();
+        let oracle_vk_encoding_witness = VkInRns {
+            vk: Some(oracle_vk),
+            rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
+        }
+        .encode()
+        .unwrap();
+        let oracle_vk_commitment =
+            simulate_variable_length_hash(&oracle_vk_encoding_witness, &commit_function);
+
+        let block_vk_encoding_witness = VkInRns {
+            vk: Some(block_vk),
+            rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
+        }
+        .encode()
+        .unwrap();
+        let block_vk_commitment =
+            simulate_variable_length_hash(&block_vk_encoding_witness, &commit_function);
+
+        Self {
+            block_aggregation_result,
+            oracle_aggregation_results,
+            oracle_vk_encoding_witness,
+            oracle_vk_commitment,
+            block_vk_encoding_witness,
+            block_vk_commitment,
+            block_proof_witness,
+            oracle_proof_witnesses,
             params: &COMMON_CRYPTO_PARAMS,
         }
     }
