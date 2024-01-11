@@ -6,9 +6,10 @@ mod final_aggregation;
 mod oracle_aggregation;
 mod padding;
 
-pub use franklin_crypto::bellman; // for cs_derive proc macro
-pub use franklin_crypto; // for cs_derive proc macro
 pub use sync_vm::utils; // for cs_derive proc macro
+pub use franklin_crypto::bellman; // for cs_derive proc macro
+pub use franklin_crypto;
+pub use sync_vm as advanced_components;
 
 pub use final_aggregation::*;
 pub use oracle_aggregation::*;
