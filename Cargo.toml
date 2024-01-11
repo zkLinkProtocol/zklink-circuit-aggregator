@@ -17,3 +17,4 @@ cs_derive = {git = "https://github.com/zkLinkProtocol/advanced-circuit-component
 serde = { version = "1.0.193", features = ["derive"] }
 derivative = { version = "2.2.0" }
 num-traits = "0.2"
+once_cell = "1.19.0"

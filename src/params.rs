@@ -1,0 +1,68 @@
+use crate::bellman::bn256::{Bn256, Fq};
+use crate::bellman::Engine;
+use franklin_crypto::plonk::circuit::bigint::RnsParameters;
+use once_cell::sync::Lazy;
+use sync_vm::recursion::get_base_placeholder_point_for_accumulators;
+use sync_vm::recursion::recursion_tree::AggregationParameters;
+use sync_vm::recursion::transcript::{GenericTranscriptForRNSInFieldOnly, GenericTranscriptGadget};
+use sync_vm::rescue_poseidon::{PoseidonParams, RescueParams};
+use sync_vm::traits::GenericHasher;
+use sync_vm::utils::bn254_rescue_params;
+
+pub const RATE: usize = 2;
+pub const WIDTH: usize = 3;
+pub type RescueTranscriptForRecursion<'a, E> =
+    GenericTranscriptForRNSInFieldOnly<'a, E, DefaultRescueParams<E>, RATE, WIDTH>;
+pub type DefaultRescueParams<E> = RescueParams<E, RATE, WIDTH>;
+pub type DefaultPoseidonParams<E> = PoseidonParams<E, RATE, WIDTH>;
+pub type RescueHash<E> = GenericHasher<E, RescueParams<E, RATE, WIDTH>, RATE, WIDTH>;
+pub type PoseidonHash<E> = GenericHasher<E, PoseidonParams<E, RATE, WIDTH>, RATE, WIDTH>;
+pub type DefaultTranscriptGadget<E> =
+    GenericTranscriptGadget<E, DefaultRescueParams<E>, RATE, WIDTH>;
+
+#[derive(Debug, Clone)]
+pub struct CommonCryptoParams<E: Engine> {
+    pub base_placeholder_point: E::G1Affine,
+    pub poseidon_params: PoseidonParams<E, 2, 3>,
+    pub rescue_params: RescueParams<E, 2, 3>,
+    pub rns_params: RnsParameters<E, E::Fq>,
+}
+
+impl<E: Engine> CommonCryptoParams<E> {
+    pub fn aggregation_params(
+        &self,
+    ) -> AggregationParameters<E, DefaultTranscriptGadget<E>, DefaultRescueParams<E>, 2, 3> {
+        AggregationParameters::<_, GenericTranscriptGadget<_, _, 2, 3>, _, 2, 3> {
+            base_placeholder_point: self.base_placeholder_point,
+            transcript_params: self.rescue_params.clone(),
+            hash_params: self.rescue_params.clone(),
+        }
+    }
+
+    pub fn poseidon_hash(&self) -> PoseidonHash<E> {
+        GenericHasher::new_from_params(&self.poseidon_params)
+    }
+
+    pub fn rescue_hash(&self) -> RescueHash<E> {
+        GenericHasher::new_from_params(&self.rescue_params)
+    }
+
+    pub fn recursive_transcript_params(
+        &self,
+    ) -> (&DefaultRescueParams<E>, &RnsParameters<E, E::Fq>) {
+        (&self.rescue_params, &self.rns_params)
+    }
+}
+
+pub static COMMON_CRYPTO_PARAMS: Lazy<CommonCryptoParams<Bn256>> = Lazy::new(|| {
+    let poseidon_params = PoseidonParams::default();
+    let rns_params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
+    let rescue_params = bn254_rescue_params();
+
+    CommonCryptoParams {
+        base_placeholder_point: get_base_placeholder_point_for_accumulators(),
+        poseidon_params,
+        rescue_params,
+        rns_params,
+    }
+});

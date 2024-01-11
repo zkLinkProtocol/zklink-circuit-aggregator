@@ -1,13 +1,17 @@
+use crate::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
+use crate::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use crate::bellman::plonk::better_better_cs::setup::VerificationKey;
+use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationInputData, OracleAggregationType, OracleOutputData,
 };
-use crate::padding::PaddingCryptoComponent;
-use crate::{ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
+use crate::{UniformProof, ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use franklin_crypto::bellman::{Engine, Field, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
+use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 use franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
 use franklin_crypto::plonk::circuit::Assignment;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
@@ -26,16 +30,45 @@ use sync_vm::traits::CircuitEmpty;
 use sync_vm::vm::partitioner::smart_or;
 use sync_vm::vm::primitives::small_uints::IntoFr;
 
-pub fn aggregate_oracle_proof<
+impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
+    type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
+
+    fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let agg_params = self.params.aggregation_params();
+        let rns_params = self.params.rns_params.clone();
+        let commit_hash = self.params.poseidon_hash();
+        let transcript_params = &self.params.rescue_params;
+
+        let padding = PaddingCryptoComponent::new(
+            VerificationKey::empty(),
+            UniformProof::empty(),
+            &commit_hash,
+            transcript_params,
+            &rns_params,
+        );
+        let params = (1usize, rns_params, agg_params, padding, None);
+        let (_public_input, _input_data) =
+            aggregate_oracle_proofs(cs, Some(self), &commit_hash, params)?;
+        Ok(())
+    }
+
+    fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
+        Ok(vec![
+            SelectorOptimizedWidth4MainGateWithDNext.into_internal(),
+            Rescue5CustomGate.into_internal(),
+        ])
+    }
+}
+
+pub fn aggregate_oracle_proofs<
     E: Engine,
     CS: ConstraintSystem<E>,
     T: TranscriptGadget<E>,
     P: HashParams<E, 2, 3>,
     R: CircuitArithmeticRoundFunction<E, 2, 3, StateElement = Num<E>>,
-    const USE_MODIFIED_MAIN_GATE: bool,
 >(
     cs: &mut CS,
-    witness: Option<OracleAggregationCircuit<E>>,
+    witness: Option<&OracleAggregationCircuit<E>>,
     commit_function: &R,
     params: (
         usize,
@@ -213,8 +246,8 @@ pub fn aggregate_oracle_proof<
 
 #[cfg(test)]
 mod tests {
-    use crate::oracle_aggregation::aggregation::aggregate_oracle_proof;
-    use crate::padding::PaddingCryptoComponent;
+    use crate::crypto_utils::PaddingCryptoComponent;
+    use crate::oracle_aggregation::aggregation::aggregate_oracle_proofs;
     use franklin_crypto::bellman::bn256::Fq;
     use franklin_crypto::bellman::plonk::better_better_cs::cs::{
         ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier,
@@ -282,7 +315,7 @@ mod tests {
             &rns_params,
         );
         let params = (1usize, rns_params, agg_params, padding, None);
-        aggregate_oracle_proof(&mut cs, None, &commit_hash, params)?;
+        aggregate_oracle_proofs(&mut cs, None, &commit_hash, params)?;
         println!("circuit contains {} gates", cs.n());
         assert!(cs.is_satisfied());
     }

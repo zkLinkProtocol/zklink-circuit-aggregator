@@ -1,14 +1,18 @@
+use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, VerificationKey};
+use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
     BlockAggregationInputData, FinalAggregationCircuitInstanceWitness, FinalAggregationInputData,
     OracleOnChainData, VksCompositionData,
 };
 use crate::oracle_aggregation::OracleAggregationInputData;
-use crate::padding::PaddingCryptoComponent;
-use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
+use crate::UniformProof;
+use franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
+use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
+use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 use franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
 use franklin_crypto::plonk::circuit::Assignment;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
@@ -28,18 +32,51 @@ use sync_vm::vm::primitives::small_uints::IntoFr;
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
 const GUARDIAN_SET_INDEX: u8 = 3;
 
+impl<'a, E: Engine> Circuit<E> for FinalAggregationCircuitInstanceWitness<'a, E> {
+    type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
+
+    fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
+        let agg_params = self.params.aggregation_params();
+        let rns_params = self.params.rns_params.clone();
+        let commit_hash = self.params.poseidon_hash();
+        let transcript_params = &self.params.rescue_params;
+
+        let padding = PaddingCryptoComponent::new(
+            VerificationKey::empty(),
+            UniformProof::empty(),
+            &commit_hash,
+            transcript_params,
+            &rns_params,
+        );
+        let params = (
+            1usize,
+            rns_params,
+            agg_params,
+            padding,
+            Default::default(),
+            None,
+        );
+        let (_public_input, _input_data) = final_aggregation(cs, Some(self), &commit_hash, params)?;
+        Ok(())
+    }
+
+    fn declare_used_gates() -> Result<Vec<Box<dyn GateInternal<E>>>, SynthesisError> {
+        Ok(vec![
+            SelectorOptimizedWidth4MainGateWithDNext.into_internal(),
+            Rescue5CustomGate.into_internal(),
+        ])
+    }
+}
+
 pub fn final_aggregation<
     E: Engine,
     CS: ConstraintSystem<E>,
     T: TranscriptGadget<E>,
     P: HashParams<E, 2, 3>,
     R: CircuitArithmeticRoundFunction<E, 2, 3, StateElement = Num<E>>,
-    const USE_MODIFIED_MAIN_GATE: bool,
-    const MAX_AGG_NUM: usize,
-    const BLOCK_AGG_NUM: usize,
 >(
     cs: &mut CS,
-    witness: Option<FinalAggregationCircuitInstanceWitness<E>>,
+    witness: Option<&FinalAggregationCircuitInstanceWitness<E>>,
     round_function: &R,
     params: (
         usize,

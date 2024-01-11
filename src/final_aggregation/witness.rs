@@ -1,6 +1,7 @@
 use crate::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use crate::bellman::SynthesisError;
 use crate::oracle_aggregation::OracleAggregationInputDataWitness;
+use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
 use crate::{OracleAggregationInputData, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
@@ -11,14 +12,12 @@ use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use sync_vm::glue::optimizable_queue::commit_encodable_item;
 use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::recursion::recursion_tree::NUM_LIMBS;
+use sync_vm::testing::Bn256;
 use sync_vm::traits::*;
 use sync_vm::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use sync_vm::vm::structural_eq::*;
 
-#[derive(Derivative, serde::Serialize, serde::Deserialize)]
-#[derivative(Clone, Debug)]
-#[serde(bound = "")]
-pub struct FinalAggregationCircuitInstanceWitness<E: Engine> {
+pub struct FinalAggregationCircuitInstanceWitness<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationInputDataWitness<E>,
     pub oracle_aggregation_results: Vec<OracleAggregationInputDataWitness<E>>,
 
@@ -26,22 +25,23 @@ pub struct FinalAggregationCircuitInstanceWitness<E: Engine> {
     pub oracle_vk_commitment: E::Fr,
     pub block_vk_encoding_witness: Vec<E::Fr>,
     pub block_vk_commitment: E::Fr,
-    #[derivative(Debug = "ignore")]
     pub block_proof_witness: UniformProof<E>,
-    #[derivative(Debug = "ignore")]
     pub oracle_proof_witnesses: Vec<UniformProof<E>>,
+    pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
-impl<E: Engine> FinalAggregationCircuitInstanceWitness<E> {
+impl FinalAggregationCircuitInstanceWitness<'_, Bn256> {
     pub fn circuit_default(oracle_agg_num: usize) -> Self {
         assert!(oracle_agg_num <= 17);
         Self {
             block_aggregation_result:
-                <BlockAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness(),
+                <BlockAggregationInputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
             oracle_aggregation_results: vec![
-                    <OracleAggregationInputData<E> as CSWitnessable<E>>::placeholder_witness();
-                    oracle_agg_num
-                ],
+                <OracleAggregationInputData<Bn256> as CSWitnessable<
+                    Bn256,
+                >>::placeholder_witness();
+                oracle_agg_num
+            ],
 
             oracle_vk_encoding_witness: vec![Default::default(); VK_ENCODING_LENGTH],
             oracle_vk_commitment: Default::default(),
@@ -50,6 +50,7 @@ impl<E: Engine> FinalAggregationCircuitInstanceWitness<E> {
 
             block_proof_witness: UniformProof::empty(),
             oracle_proof_witnesses: vec![UniformProof::empty(); oracle_agg_num],
+            params: &COMMON_CRYPTO_PARAMS,
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::params::{DefaultRescueParams, RescueTranscriptForRecursion};
 use crate::{UniformCircuit, UniformProof};
 use franklin_crypto::bellman::plonk::better_better_cs;
 use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
@@ -7,15 +8,7 @@ use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use sync_vm::glue::optimizable_queue::simulate_variable_length_hash;
 use sync_vm::recursion::aggregation::VkInRns;
 use sync_vm::recursion::node_aggregation::VK_ENCODING_LENGTH;
-use sync_vm::recursion::transcript::GenericTranscriptForRNSInFieldOnly;
-use sync_vm::rescue_poseidon::RescueParams;
 use sync_vm::traits::ArithmeticEncodable;
-
-const RATE: usize = 2;
-const WIDTH: usize = 3;
-pub type RescueTranscriptForRecursion<'a, E> =
-    GenericTranscriptForRNSInFieldOnly<'a, E, DefaultRescueParams<E>, RATE, WIDTH>;
-pub type DefaultRescueParams<E> = RescueParams<E, RATE, WIDTH>;
 
 #[derive(Debug, Clone)]
 pub struct PaddingCryptoComponent<E: Engine> {

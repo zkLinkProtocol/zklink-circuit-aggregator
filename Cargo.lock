@@ -551,6 +551,7 @@ dependencies = [
  "derivative",
  "franklin-crypto",
  "num-traits",
+ "once_cell",
  "serde",
  "sync_vm",
 ]
