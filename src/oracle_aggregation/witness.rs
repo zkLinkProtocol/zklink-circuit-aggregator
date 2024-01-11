@@ -18,6 +18,14 @@ use sync_vm::traits::*;
 use sync_vm::vm::structural_eq::*;
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
+pub const ALL_AGGREGATION_TYPES: [OracleAggregationType; ORACLE_CIRCUIT_TYPES_NUM] = [
+    OracleAggregationType::AggregationNull,
+    OracleAggregationType::Aggregation1,
+    OracleAggregationType::Aggregation2,
+    OracleAggregationType::Aggregation3,
+    OracleAggregationType::Aggregation4,
+    OracleAggregationType::Aggregation5,
+];
 
 #[derive(Derivative, serde::Serialize, serde::Deserialize)]
 #[derivative(Clone, Debug)]

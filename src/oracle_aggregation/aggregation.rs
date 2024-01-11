@@ -2,6 +2,7 @@ use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationInputData, OracleAggregationType, OracleOutputData,
 };
 use crate::padding::PaddingCryptoComponent;
+use crate::{ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use franklin_crypto::bellman::{Engine, Field, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -76,16 +77,8 @@ pub fn aggregate_oracle_proof<
     let mut vks_commitments_set = project_ref!(witness, vks_commitments_set).cloned();
 
     // prepare vk_commitments circuit variables
-    let all_aggregation_types = [
-        OracleAggregationType::AggregationNull,
-        OracleAggregationType::Aggregation1,
-        OracleAggregationType::Aggregation2,
-        OracleAggregationType::Aggregation3,
-        OracleAggregationType::Aggregation4,
-        OracleAggregationType::Aggregation5,
-    ];
-    let mut vk_commitments = Vec::with_capacity(all_aggregation_types.len());
-    for circuit_type in all_aggregation_types {
+    let mut vk_commitments = Vec::with_capacity(ORACLE_CIRCUIT_TYPES_NUM);
+    for circuit_type in ALL_AGGREGATION_TYPES {
         let circuit_type = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk = Num::alloc(
             cs,

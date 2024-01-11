@@ -26,7 +26,7 @@ use sync_vm::traits::{CSAllocatable, CircuitEmpty};
 use sync_vm::vm::primitives::small_uints::IntoFr;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
-const GUARDIAN_SET_INDEX: u8 = 0;
+const GUARDIAN_SET_INDEX: u8 = 3;
 
 pub fn final_aggregation<
     E: Engine,
@@ -196,7 +196,7 @@ pub fn final_aggregation<
         blocks_commitments: block_aggregation_data.blocks_commitments,
         oracle_data: OracleOnChainData {
             used_pyth_num,
-            guardian_set_index: Num::Constant(IntoFr::<E>::into_fr(GUARDIAN_SET_INDEX)),
+            guardian_set_index: Num::alloc(cs, Some(IntoFr::<E>::into_fr(GUARDIAN_SET_INDEX)))?,
             guardian_set_hash: first_oracle_agg_data.guardian_set_hash,
             earliest_publish_time: first_oracle_agg_data.earliest_publish_time,
         },
