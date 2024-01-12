@@ -1,7 +1,7 @@
-use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal};
+use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
-    BlockAggregationInputData, FinalAggregationCircuitInstanceWitness, FinalAggregationInputData,
+    BlockAggregationInputData, FinalAggregationCircuit, FinalAggregationInputData,
     OracleOnChainData, VksCompositionData,
 };
 use crate::oracle_aggregation::OracleAggregationInputData;
@@ -9,15 +9,17 @@ use crate::UniformProof;
 use franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
 use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
-use franklin_crypto::bellman::{Engine, SynthesisError};
+use franklin_crypto::bellman::{Engine, PrimeField, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
 use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
 use franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
 use franklin_crypto::plonk::circuit::Assignment;
+use franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
+use franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use sync_vm::glue::optimizable_queue::{commit_encodable_item, variable_length_hash};
+use sync_vm::glue::optimizable_queue::commit_encodable_item;
 use sync_vm::glue::prepacked_long_comparison;
 use sync_vm::project_ref;
 use sync_vm::recursion::node_aggregation::{
@@ -27,13 +29,15 @@ use sync_vm::recursion::recursion_tree::{AggregationParameters, NUM_LIMBS};
 use sync_vm::recursion::transcript::TranscriptGadget;
 use sync_vm::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
 use sync_vm::rescue_poseidon::HashParams;
+use sync_vm::scheduler::block_header::keccak_output_into_bytes;
 use sync_vm::traits::{CSAllocatable, CircuitEmpty};
+use sync_vm::utils::compute_shifts;
 use sync_vm::vm::primitives::small_uints::IntoFr;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
 const GUARDIAN_SET_INDEX: u8 = 3;
 
-impl<'a, E: Engine> Circuit<E> for FinalAggregationCircuitInstanceWitness<'a, E> {
+impl<'a, E: Engine> Circuit<E> for FinalAggregationCircuit<'a, E> {
     type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
 
     fn synthesize<CS: ConstraintSystem<E>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
@@ -77,8 +81,8 @@ pub fn final_aggregation<
     R: CircuitArithmeticRoundFunction<E, 2, 3, StateElement = Num<E>>,
 >(
     cs: &mut CS,
-    witness: Option<&FinalAggregationCircuitInstanceWitness<E>>,
-    round_function: &R,
+    witness: Option<&FinalAggregationCircuit<E>>,
+    commit_function: &R,
     params: (
         usize,
         RnsParameters<E, E::Fq>,
@@ -144,7 +148,7 @@ pub fn final_aggregation<
     inputs.push(commit_encodable_item(
         cs,
         &block_aggregation_data,
-        round_function,
+        commit_function,
     )?);
     casted_aggregation_results.push(block_aggregation_data.aggregation_output_data.clone());
 
@@ -190,7 +194,7 @@ pub fn final_aggregation<
         inputs.push(commit_encodable_item(
             cs,
             &single_oracle_data,
-            round_function,
+            commit_function,
         )?);
         casted_aggregation_results.push(single_oracle_data.aggregation_output_data.clone());
 
@@ -217,7 +221,7 @@ pub fn final_aggregation<
             &rns_params,
             padding_proof,
             Some(casted_aggregation_results),
-            round_function,
+            commit_function,
             vks_raw_elements_witness,
             padding_vk_encoding,
             g2_elements,
@@ -228,7 +232,17 @@ pub fn final_aggregation<
         oracle_vks_hash: block_aggregation_data.vk_root,
         block_vks_commitment: first_oracle_agg_data.oracle_vks_hash,
     };
-    let vks_commitment = commit_encodable_item(cs, &vks_composition_data, round_function)?;
+    let vks_commitment = commit_encodable_item(cs, &vks_composition_data, commit_function)?;
+
+    let keccak_gadget = Keccak256Gadget::new(
+        cs,
+        None,
+        None,
+        None,
+        None,
+        true,
+        RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME,
+    )?;
     let input_data = FinalAggregationInputData::<E> {
         vks_commitment,
         blocks_commitments: block_aggregation_data.blocks_commitments,
@@ -246,10 +260,24 @@ pub fn final_aggregation<
         },
     };
 
-    let encodes = input_data.encode(cs, round_function)?;
-    let input_commitment = variable_length_hash(cs, &encodes, round_function)?;
-    let public_input = AllocatedNum::alloc_input(cs, || input_commitment.get_value().grab())?;
-    public_input.enforce_equal(cs, &input_commitment.get_variable())?;
+    let bytes = input_data.encode_bytes(cs, &keccak_gadget)?;
+    let digest = keccak_gadget.digest_from_bytes(cs, &bytes)?;
+    let input_keccak_hash = keccak_output_into_bytes(cs, digest)?;
+
+    let to_take = (E::Fr::CAPACITY as usize) / 8;
+    let shifts = compute_shifts::<E::Fr>();
+
+    let mut shift = 0;
+    let mut lc = LinearCombination::zero();
+    for el in input_keccak_hash.iter().rev().take(to_take) {
+        lc.add_assign_number_with_coeff(&el.inner, shifts[shift]);
+        shift += 8;
+    }
+    assert!(shift <= E::Fr::CAPACITY as usize);
+    let input = lc.into_num(cs)?;
+
+    let public_input = AllocatedNum::alloc_input(cs, || Ok(input.get_value().grab()?))?;
+    public_input.enforce_equal(cs, &input.get_variable())?;
 
     Ok((public_input, input_data))
 }

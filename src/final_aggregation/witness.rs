@@ -8,17 +8,20 @@ use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
 use franklin_crypto::bellman::{Engine, SynthesisError};
 use franklin_crypto::plonk::circuit::allocated_num::Num;
 use franklin_crypto::plonk::circuit::boolean::Boolean;
+use franklin_crypto::plonk::circuit::byte::{Byte, IntoBytes};
+use franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
 use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use sync_vm::glue::optimizable_queue::{commit_encodable_item, simulate_variable_length_hash};
 use sync_vm::recursion::aggregation::VkInRns;
 use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::recursion::recursion_tree::NUM_LIMBS;
+use sync_vm::scheduler::block_header::keccak_output_into_bytes;
 use sync_vm::testing::Bn256;
 use sync_vm::traits::*;
 use sync_vm::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use sync_vm::vm::structural_eq::*;
 
-pub struct FinalAggregationCircuitInstanceWitness<'a, E: Engine> {
+pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationInputDataWitness<E>,
     pub oracle_aggregation_results: Vec<OracleAggregationInputDataWitness<E>>,
 
@@ -31,7 +34,7 @@ pub struct FinalAggregationCircuitInstanceWitness<'a, E: Engine> {
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
-impl FinalAggregationCircuitInstanceWitness<'_, Bn256> {
+impl FinalAggregationCircuit<'_, Bn256> {
     pub fn circuit_default(oracle_agg_num: usize) -> Self {
         assert!(oracle_agg_num <= 17);
         Self {
@@ -158,6 +161,41 @@ impl<E: Engine> FinalAggregationInputData<E> {
             &self.aggregation_output_data,
             cs,
         )?);
+        assert_eq!(encodes.len(), encodes.capacity());
+        Ok(encodes)
+    }
+
+    pub fn encode_bytes<
+        CS: ConstraintSystem<E>,
+        R: CircuitArithmeticRoundFunction<E, A_WIDTH, S_WIDTH, StateElement = Num<E>>,
+        const A_WIDTH: usize,
+        const S_WIDTH: usize,
+    >(
+        &self,
+        cs: &mut CS,
+        keccak_gadget: &Keccak256Gadget<E>,
+    ) -> Result<Vec<Byte<E>>, SynthesisError> {
+        let len = 1usize + self.blocks_commitments.len() + 1 + 4 * NUM_LIMBS;
+        let mut encodes = Vec::with_capacity(len * 32);
+        encodes.extend(self.vks_commitment.into_be_bytes(cs)?);
+
+        for block_commitment  in self.blocks_commitments {
+            encodes.extend(block_commitment.into_be_bytes(cs)?);
+        }
+
+        let mut oracle_bytes = Vec::with_capacity(4 * 32);
+        oracle_bytes.extend(self.oracle_data.used_pyth_num.into_be_bytes(cs)?);
+        oracle_bytes.extend(self.oracle_data.guardian_set_index.into_be_bytes(cs)?);
+        oracle_bytes.extend(self.oracle_data.guardian_set_hash.into_be_bytes(cs)?);
+        oracle_bytes.extend(self.oracle_data.earliest_publish_time.into_be_bytes(cs)?);
+        let digest = keccak_gadget.digest_from_bytes(cs, &oracle_bytes)?;
+        let input_keccak_hash = keccak_output_into_bytes(cs, digest)?;
+        encodes.extend(input_keccak_hash);
+
+        encodes.extend(self.aggregation_output_data.pair_with_generator_x.into_be_bytes(cs)?);
+        encodes.extend(self.aggregation_output_data.pair_with_generator_y.into_be_bytes(cs)?);
+        encodes.extend(self.aggregation_output_data.pair_with_x_x.into_be_bytes(cs)?);
+        encodes.extend(self.aggregation_output_data.pair_with_x_y.into_be_bytes(cs)?);
         assert_eq!(encodes.len(), encodes.capacity());
         Ok(encodes)
     }
