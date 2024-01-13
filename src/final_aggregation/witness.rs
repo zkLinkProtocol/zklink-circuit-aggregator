@@ -1,4 +1,4 @@
-use crate::oracle_aggregation::OracleAggregationInputDataWitness;
+use crate::oracle_aggregation::OracleAggregationOutputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
 use crate::{final_aggregation, OracleAggregationOutputData, PaddingCryptoComponent, UniformCircuit, UniformProof};
 use cs_derive::*;
@@ -22,8 +22,8 @@ use sync_vm::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodabl
 use sync_vm::vm::structural_eq::*;
 
 pub struct FinalAggregationCircuit<'a, E: Engine> {
-    pub block_aggregation_result: BlockAggregationInputDataWitness<E>,
-    pub oracle_aggregation_results: Vec<OracleAggregationInputDataWitness<E>>,
+    pub block_aggregation_result: BlockAggregationOutputDataWitness<E>,
+    pub oracle_aggregation_results: Vec<OracleAggregationOutputDataWitness<E>>,
 
     pub oracle_vk_encoding_witness: Vec<E::Fr>,
     pub oracle_vk_commitment: E::Fr,
@@ -32,7 +32,7 @@ pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_proof_witness: UniformProof<E>,
     pub oracle_proof_witnesses: Vec<UniformProof<E>>,
 
-    pub output: Option<FinalAggregationInputDataWitness<E>>,
+    pub output: Option<FinalAggregationOutputDataWitness<E>>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
@@ -41,7 +41,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
         assert!(oracle_agg_num <= 17);
         Self {
             block_aggregation_result:
-                <BlockAggregationInputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
+                <BlockAggregationOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
             oracle_aggregation_results: vec![
                 <OracleAggregationOutputData<Bn256> as CSWitnessable<
                     Bn256,
@@ -62,8 +62,8 @@ impl FinalAggregationCircuit<'_, Bn256> {
     }
 
     pub fn generate(
-        block_aggregation_result: BlockAggregationInputDataWitness<Bn256>,
-        oracle_aggregation_results: Vec<OracleAggregationInputDataWitness<Bn256>>,
+        block_aggregation_result: BlockAggregationOutputDataWitness<Bn256>,
+        oracle_aggregation_results: Vec<OracleAggregationOutputDataWitness<Bn256>>,
         oracle_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
         block_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
         block_proof_witness: UniformProof<Bn256>,
@@ -126,9 +126,9 @@ impl FinalAggregationCircuit<'_, Bn256> {
             None,
         );
         let (mut cs, ..) = create_test_artifacts();
-        let (_public_input, input_data) = final_aggregation(&mut cs, Some(&witness), &commit_hash, params)
+        let (_public_input, public_input_data) = final_aggregation(&mut cs, Some(&witness), &commit_hash, params)
             .expect("Failed to final aggregate");
-        witness.output = input_data.create_witness();
+        witness.output = public_input_data.create_witness();
 
         witness
     }
@@ -146,7 +146,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
     CSVariableLengthEncodable,
 )]
 #[derivative(Clone, Debug)]
-pub struct BlockAggregationInputData<E: Engine> {
+pub struct BlockAggregationOutputData<E: Engine> {
     pub vk_root: Num<E>,
     pub final_price_commitment: Num<E>, // consider previous_price_hash^2 + this_price_hash
     pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
@@ -157,14 +157,14 @@ pub const BLOCK_AGG_NUM: usize = 36;
 // On-chain information
 #[derive(Derivative, CSWitnessable)]
 #[derivative(Clone, Debug)]
-pub struct FinalAggregationInputData<E: Engine> {
+pub struct FinalAggregationOutputData<E: Engine> {
     pub vks_commitment: Num<E>,
     pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
     pub oracle_data: OracleOnChainData<E>,
     pub aggregation_output_data: NodeAggregationOutputData<E>,
 }
 
-impl<E: Engine> FinalAggregationInputData<E> {
+impl<E: Engine> FinalAggregationOutputData<E> {
     pub fn encode<
         CS: ConstraintSystem<E>,
         R: CircuitArithmeticRoundFunction<E, A_WIDTH, S_WIDTH, StateElement = Num<E>>,

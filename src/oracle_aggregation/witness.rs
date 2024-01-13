@@ -35,7 +35,7 @@ pub struct OracleAggregationCircuit<'a, E: Engine> {
     pub(crate) vk_encoding_witnesses: Vec<Vec<E::Fr>>,
     pub(crate) proof_witnesses: Vec<UniformProof<E>>,
 
-    pub output: Option<OracleAggregationInputDataWitness<E>>,
+    pub output: Option<OracleAggregationOutputDataWitness<E>>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
@@ -121,11 +121,11 @@ impl OracleAggregationCircuit<'_, Bn256> {
         );
         let params = (num_proofs_to_aggregate, rns_params, agg_params, padding, None);
         let (mut cs, ..) = create_test_artifacts();
-        let (_public_input, input_data) =
+        let (_public_input, public_input_data) =
             aggregate_oracle_proofs(&mut cs, Some(&witness), &commit_hash, params)
                 .expect("Failed to oracle aggregate");
 
-        witness.output = input_data.create_witness();
+        witness.output = public_input_data.create_witness();
         witness
     }
 }
@@ -142,7 +142,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
     CSVariableLengthEncodable,
 )]
 #[derivative(Clone, Debug)]
-pub struct OracleAggregationInputData<E: Engine> {
+pub struct OracleAggregationOutputData<E: Engine> {
     pub oracle_vks_hash: Num<E>,
     pub guardian_set_hash: Num<E>,
     pub final_price_commitment: Num<E>,
@@ -150,7 +150,7 @@ pub struct OracleAggregationInputData<E: Engine> {
     pub aggregation_output_data: NodeAggregationOutputData<E>,
 }
 
-impl<E: Engine> CircuitEmpty<E> for OracleAggregationInputData<E> {
+impl<E: Engine> CircuitEmpty<E> for OracleAggregationOutputData<E> {
     fn empty() -> Self {
         Self {
             oracle_vks_hash: Num::zero(),

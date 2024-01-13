@@ -224,7 +224,7 @@ pub fn aggregate_oracle_proofs<
         .map(|(_, commitment)| commitment)
         .collect::<Vec<_>>();
     let oracle_vks_hash = variable_length_hash(cs, &vk_commitments, commit_function)?;
-    let input_data = OracleAggregationOutputData {
+    let public_input_data = OracleAggregationOutputData {
         oracle_vks_hash,
         guardian_set_hash,
         final_price_commitment,
@@ -237,11 +237,11 @@ pub fn aggregate_oracle_proofs<
         },
     };
 
-    let input_commitment = commit_encodable_item(cs, &input_data, commit_function)?;
+    let input_commitment = commit_encodable_item(cs, &public_input_data, commit_function)?;
     let public_input = AllocatedNum::alloc_input(cs, || input_commitment.get_value().grab())?;
     public_input.enforce_equal(cs, &input_commitment.get_variable())?;
 
-    Ok((public_input, input_data))
+    Ok((public_input, public_input_data))
 }
 
 #[cfg(test)]

@@ -1,7 +1,7 @@
 use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
-    BlockAggregationInputData, FinalAggregationCircuit, FinalAggregationInputData,
+    BlockAggregationOutputData, FinalAggregationCircuit, FinalAggregationOutputData,
     OracleOnChainData, VksCompositionData,
 };
 use crate::oracle_aggregation::OracleAggregationOutputData;
@@ -96,7 +96,7 @@ pub fn final_aggregation<
         )>,
         Option<[E::G2Affine; 2]>,
     ),
-) -> Result<(AllocatedNum<E>, FinalAggregationInputData<E>), SynthesisError> {
+) -> Result<(AllocatedNum<E>, FinalAggregationOutputData<E>), SynthesisError> {
     let (
         num_proofs_aggregated_oracle,
         rns_params,
@@ -127,14 +127,14 @@ pub fn final_aggregation<
         project_ref!(witness, oracle_vk_encoding_witness).map(|el| el.clone().try_into().unwrap());
 
     let block_aggregation_data =
-        BlockAggregationInputData::alloc_from_witness(cs, block_aggregation_result)?;
+        BlockAggregationOutputData::alloc_from_witness(cs, block_aggregation_result)?;
     let mut oracle_aggregation_data = vec![];
     for oracle_agg_idx in 0..num_proofs_aggregated_oracle {
-        let input_data = OracleAggregationOutputData::alloc_from_witness(
+        let public_input_data = OracleAggregationOutputData::alloc_from_witness(
             cs,
             oracle_aggregation_results.map(|res| res[oracle_agg_idx].clone()),
         )?;
-        oracle_aggregation_data.push(input_data);
+        oracle_aggregation_data.push(public_input_data);
     }
     let first_oracle_agg_data = oracle_aggregation_data[0].clone();
 
@@ -243,7 +243,7 @@ pub fn final_aggregation<
         true,
         RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME,
     )?;
-    let input_data = FinalAggregationInputData::<E> {
+    let public_input_data = FinalAggregationOutputData::<E> {
         vks_commitment,
         blocks_commitments: block_aggregation_data.blocks_commitments,
         oracle_data: OracleOnChainData {
@@ -260,7 +260,7 @@ pub fn final_aggregation<
         },
     };
 
-    let bytes = input_data.encode_bytes(cs, &keccak_gadget)?;
+    let bytes = public_input_data.encode_bytes(cs, &keccak_gadget)?;
     let digest = keccak_gadget.digest_from_bytes(cs, &bytes)?;
     let input_keccak_hash = keccak_output_into_bytes(cs, digest)?;
 
@@ -279,5 +279,5 @@ pub fn final_aggregation<
     let public_input = AllocatedNum::alloc_input(cs, || Ok(input.get_value().grab()?))?;
     public_input.enforce_equal(cs, &input.get_variable())?;
 
-    Ok((public_input, input_data))
+    Ok((public_input, public_input_data))
 }
