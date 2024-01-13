@@ -1,6 +1,6 @@
 use crate::oracle_aggregation::OracleAggregationInputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
-use crate::{OracleAggregationInputData, UniformCircuit, UniformProof};
+use crate::{final_aggregation, OracleAggregationOutputData, PaddingCryptoComponent, UniformCircuit, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
@@ -16,7 +16,7 @@ use sync_vm::recursion::aggregation::VkInRns;
 use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use sync_vm::recursion::recursion_tree::NUM_LIMBS;
 use sync_vm::scheduler::block_header::keccak_output_into_bytes;
-use sync_vm::testing::Bn256;
+use sync_vm::testing::{Bn256, create_test_artifacts};
 use sync_vm::traits::*;
 use sync_vm::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use sync_vm::vm::structural_eq::*;
@@ -31,6 +31,8 @@ pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_vk_commitment: E::Fr,
     pub block_proof_witness: UniformProof<E>,
     pub oracle_proof_witnesses: Vec<UniformProof<E>>,
+
+    pub output: Option<FinalAggregationInputDataWitness<E>>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
@@ -41,7 +43,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
             block_aggregation_result:
                 <BlockAggregationInputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
             oracle_aggregation_results: vec![
-                <OracleAggregationInputData<Bn256> as CSWitnessable<
+                <OracleAggregationOutputData<Bn256> as CSWitnessable<
                     Bn256,
                 >>::placeholder_witness();
                 oracle_agg_num
@@ -54,6 +56,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
 
             block_proof_witness: UniformProof::empty(),
             oracle_proof_witnesses: vec![UniformProof::empty(); oracle_agg_num],
+            output: None,
             params: &COMMON_CRYPTO_PARAMS,
         }
     }
@@ -90,7 +93,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
         let block_vk_commitment =
             simulate_variable_length_hash(&block_vk_encoding_witness, &commit_function);
 
-        Self {
+        let mut witness = Self {
             block_aggregation_result,
             oracle_aggregation_results,
             oracle_vk_encoding_witness,
@@ -99,8 +102,35 @@ impl FinalAggregationCircuit<'_, Bn256> {
             block_vk_commitment,
             block_proof_witness,
             oracle_proof_witnesses,
+            output: None,
             params: &COMMON_CRYPTO_PARAMS,
-        }
+        };
+
+        let agg_params = witness.params.aggregation_params();
+        let rns_params = witness.params.rns_params.clone();
+        let commit_hash = witness.params.poseidon_hash();
+        let transcript_params = &witness.params.rescue_params;
+        let padding = PaddingCryptoComponent::new(
+            VerificationKey::empty(),
+            UniformProof::empty(),
+            &commit_hash,
+            transcript_params,
+            &rns_params,
+        );
+        let params = (
+            witness.oracle_proof_witnesses.len() + 1,
+            rns_params,
+            agg_params,
+            padding,
+            Default::default(),
+            None,
+        );
+        let (mut cs, ..) = create_test_artifacts();
+        let (_public_input, input_data) = final_aggregation(&mut cs, Some(&witness), &commit_hash, params)
+            .expect("Failed to final aggregate");
+        witness.output = input_data.create_witness();
+
+        witness
     }
 }
 
@@ -165,12 +195,7 @@ impl<E: Engine> FinalAggregationInputData<E> {
         Ok(encodes)
     }
 
-    pub fn encode_bytes<
-        CS: ConstraintSystem<E>,
-        R: CircuitArithmeticRoundFunction<E, A_WIDTH, S_WIDTH, StateElement = Num<E>>,
-        const A_WIDTH: usize,
-        const S_WIDTH: usize,
-    >(
+    pub fn encode_bytes<CS: ConstraintSystem<E>>(
         &self,
         cs: &mut CS,
         keccak_gadget: &Keccak256Gadget<E>,
@@ -192,10 +217,15 @@ impl<E: Engine> FinalAggregationInputData<E> {
         let input_keccak_hash = keccak_output_into_bytes(cs, digest)?;
         encodes.extend(input_keccak_hash);
 
-        encodes.extend(self.aggregation_output_data.pair_with_generator_x.into_be_bytes(cs)?);
-        encodes.extend(self.aggregation_output_data.pair_with_generator_y.into_be_bytes(cs)?);
-        encodes.extend(self.aggregation_output_data.pair_with_x_x.into_be_bytes(cs)?);
-        encodes.extend(self.aggregation_output_data.pair_with_x_y.into_be_bytes(cs)?);
+        for coord_limb in [
+            self.aggregation_output_data.pair_with_generator_x,
+            self.aggregation_output_data.pair_with_generator_y,
+            self.aggregation_output_data.pair_with_x_x,
+            self.aggregation_output_data.pair_with_x_y,
+        ].iter().flatten() {
+            encodes.extend(coord_limb.into_be_bytes(cs)?);
+
+        }
         assert_eq!(encodes.len(), encodes.capacity());
         Ok(encodes)
     }

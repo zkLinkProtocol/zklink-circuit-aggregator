@@ -4,7 +4,7 @@ use crate::final_aggregation::witness::{
     BlockAggregationInputData, FinalAggregationCircuit, FinalAggregationInputData,
     OracleOnChainData, VksCompositionData,
 };
-use crate::oracle_aggregation::OracleAggregationInputData;
+use crate::oracle_aggregation::OracleAggregationOutputData;
 use crate::UniformProof;
 use franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
 use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
@@ -54,7 +54,7 @@ impl<'a, E: Engine> Circuit<E> for FinalAggregationCircuit<'a, E> {
             &rns_params,
         );
         let params = (
-            1usize,
+            self.oracle_proof_witnesses.len() + 1,
             rns_params,
             agg_params,
             padding,
@@ -130,7 +130,7 @@ pub fn final_aggregation<
         BlockAggregationInputData::alloc_from_witness(cs, block_aggregation_result)?;
     let mut oracle_aggregation_data = vec![];
     for oracle_agg_idx in 0..num_proofs_aggregated_oracle {
-        let input_data = OracleAggregationInputData::alloc_from_witness(
+        let input_data = OracleAggregationOutputData::alloc_from_witness(
             cs,
             oracle_aggregation_results.map(|res| res[oracle_agg_idx].clone()),
         )?;
@@ -154,7 +154,7 @@ pub fn final_aggregation<
 
     let mut oracle_price_commitment = Num::zero();
     let mut last_oracle_vk_hash = Num::zero();
-    let mut last_oracle_input_data = OracleAggregationInputData::empty();
+    let mut last_oracle_input_data = OracleAggregationOutputData::empty();
     let mut used_pyth_num = Num::zero();
     for (oracle_idx, single_oracle_data) in oracle_aggregation_data.into_iter().enumerate() {
         let is_padding = Num::equals(cs, &single_oracle_data.final_price_commitment, &Num::zero())?;

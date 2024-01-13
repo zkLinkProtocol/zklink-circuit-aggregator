@@ -3,7 +3,7 @@ use crate::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_ne
 use crate::bellman::plonk::better_better_cs::setup::VerificationKey;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
-    OracleAggregationCircuit, OracleAggregationInputData, OracleAggregationType, OracleOutputData,
+    OracleAggregationCircuit, OracleAggregationOutputData, OracleAggregationType, OracleOutputData,
 };
 use crate::{UniformProof, ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
 use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
@@ -46,7 +46,7 @@ impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
             transcript_params,
             &rns_params,
         );
-        let params = (1usize, rns_params, agg_params, padding, None);
+        let params = (self.oracle_inputs_data.len(), rns_params, agg_params, padding, None);
         let (_public_input, _input_data) =
             aggregate_oracle_proofs(cs, Some(self), &commit_hash, params)?;
         Ok(())
@@ -77,7 +77,7 @@ pub fn aggregate_oracle_proofs<
         PaddingCryptoComponent<E>,
         Option<[E::G2Affine; 2]>,
     ),
-) -> Result<(AllocatedNum<E>, OracleAggregationInputData<E>), SynthesisError> {
+) -> Result<(AllocatedNum<E>, OracleAggregationOutputData<E>), SynthesisError> {
     let (
         num_proofs_to_aggregate,
         rns_params,
@@ -224,7 +224,7 @@ pub fn aggregate_oracle_proofs<
         .map(|(_, commitment)| commitment)
         .collect::<Vec<_>>();
     let oracle_vks_hash = variable_length_hash(cs, &vk_commitments, commit_function)?;
-    let input_data = OracleAggregationInputData {
+    let input_data = OracleAggregationOutputData {
         oracle_vks_hash,
         guardian_set_hash,
         final_price_commitment,
@@ -249,22 +249,20 @@ mod tests {
     use crate::crypto_utils::PaddingCryptoComponent;
     use crate::oracle_aggregation::aggregation::aggregate_oracle_proofs;
     use franklin_crypto::bellman::bn256::Fq;
-    use franklin_crypto::bellman::plonk::better_better_cs::cs::{
-        ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier,
-        TrivialAssembly,
-    };
+    use franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly, VerificationKey};
     use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
     use franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
     use franklin_crypto::plonk::circuit::bigint::RnsParameters;
     use sync_vm::recursion::get_base_placeholder_point_for_accumulators;
     use sync_vm::recursion::recursion_tree::AggregationParameters;
-    use sync_vm::recursion::transcript::{GenericTranscriptGadget, TranscriptGadget};
+    use sync_vm::recursion::transcript::GenericTranscriptGadget;
     use sync_vm::rescue_poseidon::PoseidonParams;
     use sync_vm::testing::Bn256;
     use sync_vm::traits::GenericHasher;
     use sync_vm::utils::bn254_rescue_params;
     use sync_vm::vm::tables::BitwiseLogicTable;
     use sync_vm::vm::VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
+    use crate::bellman::plonk::better_better_cs::proof::Proof;
 
     type ActualConstraintSystem = TrivialAssembly<
         Bn256,
@@ -289,7 +287,7 @@ mod tests {
                 None,
                 true,
             );
-            cs.add_table(bitwise_logic_table)?;
+            cs.add_table(bitwise_logic_table).unwrap();
         };
         cs
     }
@@ -301,21 +299,22 @@ mod tests {
         let commit_hash = GenericHasher::new_from_params(&commit_hash_params);
         let rns_params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
         let transcript_params = bn254_rescue_params();
+
+        let padding = PaddingCryptoComponent::new(
+            VerificationKey::empty(),
+            Proof::empty(),
+            &commit_hash,
+            &transcript_params,
+            &rns_params,
+        );
         let agg_params = AggregationParameters::<_, GenericTranscriptGadget<_, _, 2, 3>, _, 2, 3> {
             base_placeholder_point: get_base_placeholder_point_for_accumulators(),
             transcript_params: transcript_params.clone(),
             hash_params: transcript_params,
         };
 
-        let padding = PaddingCryptoComponent::new(
-            Default::default(),
-            Default::default(),
-            &commit_hash,
-            &transcript_params,
-            &rns_params,
-        );
         let params = (1usize, rns_params, agg_params, padding, None);
-        aggregate_oracle_proofs(&mut cs, None, &commit_hash, params)?;
+        aggregate_oracle_proofs(&mut cs, None, &commit_hash, params).unwrap();
         println!("circuit contains {} gates", cs.n());
         assert!(cs.is_satisfied());
     }

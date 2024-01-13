@@ -1,6 +1,6 @@
 use crate::bellman::bn256::Bn256;
 use crate::params::{CommonCryptoParams, RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
-use crate::{UniformCircuit, UniformProof};
+use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
 use franklin_crypto::bellman::plonk::better_better_cs;
@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 use sync_vm::glue::optimizable_queue::simulate_variable_length_hash;
 use sync_vm::recursion::aggregation::VkInRns;
 use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
+use sync_vm::testing::create_test_artifacts;
 use sync_vm::traits::*;
 use sync_vm::vm::structural_eq::*;
 
@@ -33,6 +34,8 @@ pub struct OracleAggregationCircuit<'a, E: Engine> {
     pub(crate) vks_commitments_set: Vec<E::Fr>,
     pub(crate) vk_encoding_witnesses: Vec<Vec<E::Fr>>,
     pub(crate) proof_witnesses: Vec<UniformProof<E>>,
+
+    pub output: Option<OracleAggregationInputDataWitness<E>>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
@@ -53,6 +56,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
                 ORACLE_CIRCUIT_TYPES_NUM
             ],
             params: &COMMON_CRYPTO_PARAMS,
+            output: None,
         }
     }
 
@@ -62,10 +66,12 @@ impl OracleAggregationCircuit<'_, Bn256> {
         proof_witnesses: Vec<UniformProof<Bn256>>,
         vks: BTreeMap<OracleAggregationType, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
     ) -> Self {
-        assert_eq!(oracle_inputs_data.len(), aggregation_type_set.len());
-        assert_eq!(oracle_inputs_data.len(), proof_witnesses.len());
+        let num_proofs_to_aggregate = oracle_inputs_data.len();
+        assert_eq!(num_proofs_to_aggregate, aggregation_type_set.len());
+        assert_eq!(num_proofs_to_aggregate, proof_witnesses.len());
         for (aggregation_type, proof) in aggregation_type_set.iter().zip(proof_witnesses.iter()) {
             let vk = vks.get(aggregation_type).unwrap();
+            println!("vks1");
             assert!(
                 better_better_cs::verifier::verify::<_, _, RescueTranscriptForRecursion<'_, _>>(
                     vk,
@@ -92,14 +98,35 @@ impl OracleAggregationCircuit<'_, Bn256> {
             vks_commitments_set.push(vk_commitment);
         }
 
-        Self {
+        let mut witness = Self {
             oracle_inputs_data,
             aggregation_type_set,
             vks_commitments_set,
             vk_encoding_witnesses,
             proof_witnesses,
             params: &COMMON_CRYPTO_PARAMS,
-        }
+            output: None,
+        };
+        let agg_params = witness.params.aggregation_params();
+        let rns_params = witness.params.rns_params.clone();
+        let commit_hash = witness.params.poseidon_hash();
+        let transcript_params = &witness.params.rescue_params;
+
+        let padding = PaddingCryptoComponent::new(
+            VerificationKey::empty(),
+            UniformProof::empty(),
+            &commit_hash,
+            transcript_params,
+            &rns_params,
+        );
+        let params = (num_proofs_to_aggregate, rns_params, agg_params, padding, None);
+        let (mut cs, ..) = create_test_artifacts();
+        let (_public_input, input_data) =
+            aggregate_oracle_proofs(&mut cs, Some(&witness), &commit_hash, params)
+                .expect("Failed to oracle aggregate");
+
+        witness.output = input_data.create_witness();
+        witness
     }
 }
 

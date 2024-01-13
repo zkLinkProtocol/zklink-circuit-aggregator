@@ -1,8 +1,8 @@
-use crate::bellman::bn256::{Bn256, Fq};
+use crate::bellman::bn256::Bn256;
 use crate::bellman::Engine;
 use franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use once_cell::sync::Lazy;
-use sync_vm::recursion::get_base_placeholder_point_for_accumulators;
+use sync_vm::recursion::{get_base_placeholder_point_for_accumulators, get_prefered_rns_params};
 use sync_vm::recursion::recursion_tree::AggregationParameters;
 use sync_vm::recursion::transcript::{GenericTranscriptForRNSInFieldOnly, GenericTranscriptGadget};
 use sync_vm::rescue_poseidon::{PoseidonParams, RescueParams};
@@ -56,7 +56,7 @@ impl<E: Engine> CommonCryptoParams<E> {
 
 pub static COMMON_CRYPTO_PARAMS: Lazy<CommonCryptoParams<Bn256>> = Lazy::new(|| {
     let poseidon_params = PoseidonParams::default();
-    let rns_params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
+    let rns_params = get_prefered_rns_params();
     let rescue_params = bn254_rescue_params();
 
     CommonCryptoParams {
