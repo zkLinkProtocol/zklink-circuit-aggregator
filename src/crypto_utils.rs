@@ -1,14 +1,14 @@
 use crate::params::{DefaultRescueParams, RescueTranscriptForRecursion};
 use crate::{UniformCircuit, UniformProof};
-use franklin_crypto::bellman::plonk::better_better_cs;
-use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
-use franklin_crypto::bellman::Engine;
-use franklin_crypto::plonk::circuit::bigint::RnsParameters;
-use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use sync_vm::glue::optimizable_queue::simulate_variable_length_hash;
-use sync_vm::recursion::aggregation::VkInRns;
-use sync_vm::recursion::node_aggregation::VK_ENCODING_LENGTH;
-use sync_vm::traits::ArithmeticEncodable;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use advanced_circuit_component::franklin_crypto::bellman::Engine;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
+use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
+use advanced_circuit_component::glue::optimizable_queue::simulate_variable_length_hash;
+use advanced_circuit_component::recursion::aggregation::VkInRns;
+use advanced_circuit_component::recursion::node_aggregation::VK_ENCODING_LENGTH;
+use advanced_circuit_component::traits::ArithmeticEncodable;
 
 #[derive(Debug, Clone)]
 pub struct PaddingCryptoComponent<E: Engine> {

@@ -6,33 +6,33 @@ use crate::final_aggregation::witness::{
 };
 use crate::oracle_aggregation::OracleAggregationOutputData;
 use crate::UniformProof;
-use franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
-use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
-use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
-use franklin_crypto::bellman::{Engine, PrimeField, SynthesisError};
-use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
-use franklin_crypto::plonk::circuit::bigint::RnsParameters;
-use franklin_crypto::plonk::circuit::boolean::Boolean;
-use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
-use franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
-use franklin_crypto::plonk::circuit::Assignment;
-use franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
-use franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
-use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use sync_vm::glue::optimizable_queue::commit_encodable_item;
-use sync_vm::glue::prepacked_long_comparison;
-use sync_vm::project_ref;
-use sync_vm::recursion::node_aggregation::{
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem};
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use advanced_circuit_component::franklin_crypto::bellman::{Engine, PrimeField, SynthesisError};
+use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
+use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::Assignment;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
+use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
+use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
+use advanced_circuit_component::glue::prepacked_long_comparison;
+use advanced_circuit_component::project_ref;
+use advanced_circuit_component::recursion::node_aggregation::{
     aggregate_generic_inner, NodeAggregationOutputData, VK_ENCODING_LENGTH,
 };
-use sync_vm::recursion::recursion_tree::{AggregationParameters, NUM_LIMBS};
-use sync_vm::recursion::transcript::TranscriptGadget;
-use sync_vm::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
-use sync_vm::rescue_poseidon::HashParams;
-use sync_vm::scheduler::block_header::keccak_output_into_bytes;
-use sync_vm::traits::{CSAllocatable, CircuitEmpty};
-use sync_vm::utils::compute_shifts;
-use sync_vm::vm::primitives::small_uints::IntoFr;
+use advanced_circuit_component::recursion::recursion_tree::{AggregationParameters, NUM_LIMBS};
+use advanced_circuit_component::recursion::transcript::TranscriptGadget;
+use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
+use advanced_circuit_component::rescue_poseidon::HashParams;
+use advanced_circuit_component::scheduler::block_header::keccak_output_into_bytes;
+use advanced_circuit_component::traits::{CSAllocatable, CircuitEmpty};
+use advanced_circuit_component::utils::compute_shifts;
+use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
 const GUARDIAN_SET_INDEX: u8 = 3;
@@ -276,7 +276,7 @@ pub fn final_aggregation<
     assert!(shift <= E::Fr::CAPACITY as usize);
     let input = lc.into_num(cs)?;
 
-    let public_input = AllocatedNum::alloc_input(cs, || Ok(input.get_value().grab()?))?;
+    let public_input = AllocatedNum::alloc_input(cs, || input.get_value().grab())?;
     public_input.enforce_equal(cs, &input.get_variable())?;
 
     Ok((public_input, public_input_data))

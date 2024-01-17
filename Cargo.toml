@@ -11,9 +11,8 @@ categories = ["cryptography"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-franklin-crypto = {git = "https://github.com/zkLinkProtocol/franklin-crypto", branch = "dev", features = ["multicore"]}
-sync_vm = {git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "v1.3.3", features = ["external_testing"]}
-cs_derive = {git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "v1.3.3" }
+advanced_circuit_component = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main", features = ["external_testing"]}
+cs_derive = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 serde = { version = "1.0.193", features = ["derive"] }
 derivative = { version = "2.2.0" }
 num-traits = "0.2"

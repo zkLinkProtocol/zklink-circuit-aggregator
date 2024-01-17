@@ -3,20 +3,20 @@ use crate::params::{CommonCryptoParams, RescueTranscriptForRecursion, COMMON_CRY
 use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof};
 use cs_derive::*;
 use derivative::Derivative;
-use franklin_crypto::bellman::plonk::better_better_cs;
-use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
-use franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
-use franklin_crypto::bellman::Engine;
-use franklin_crypto::bellman::SynthesisError;
-use franklin_crypto::plonk::circuit::allocated_num::Num;
-use franklin_crypto::plonk::circuit::boolean::Boolean;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use advanced_circuit_component::franklin_crypto::bellman::Engine;
+use advanced_circuit_component::franklin_crypto::bellman::SynthesisError;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::Num;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
 use std::collections::BTreeMap;
-use sync_vm::glue::optimizable_queue::simulate_variable_length_hash;
-use sync_vm::recursion::aggregation::VkInRns;
-use sync_vm::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
-use sync_vm::testing::create_test_artifacts;
-use sync_vm::traits::*;
-use sync_vm::vm::structural_eq::*;
+use advanced_circuit_component::glue::optimizable_queue::simulate_variable_length_hash;
+use advanced_circuit_component::recursion::aggregation::VkInRns;
+use advanced_circuit_component::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
+use advanced_circuit_component::testing::create_test_artifacts;
+use advanced_circuit_component::traits::*;
+use advanced_circuit_component::vm::structural_eq::*;
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
 pub const ALL_AGGREGATION_TYPES: [OracleAggregationType; ORACLE_CIRCUIT_TYPES_NUM] = [

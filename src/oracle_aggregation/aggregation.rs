@@ -6,29 +6,29 @@ use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleAggregationType, OracleOutputData,
 };
 use crate::{UniformProof, ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
-use franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
-use franklin_crypto::bellman::{Engine, Field, SynthesisError};
-use franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
-use franklin_crypto::plonk::circuit::bigint::RnsParameters;
-use franklin_crypto::plonk::circuit::boolean::Boolean;
-use franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
-use franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
-use franklin_crypto::plonk::circuit::Assignment;
-use sync_vm::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use sync_vm::circuit_structures::utils::can_not_be_false_if_flagged;
-use sync_vm::glue::optimizable_queue::{commit_encodable_item, variable_length_hash};
-use sync_vm::glue::prepacked_long_comparison;
-use sync_vm::glue::traits::get_vec_witness_raw;
-use sync_vm::project_ref;
-use sync_vm::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
-use sync_vm::recursion::recursion_tree::AggregationParameters;
-use sync_vm::recursion::transcript::TranscriptGadget;
-use sync_vm::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
-use sync_vm::rescue_poseidon::HashParams;
-use sync_vm::traits::CSAllocatable;
-use sync_vm::traits::CircuitEmpty;
-use sync_vm::vm::partitioner::smart_or;
-use sync_vm::vm::primitives::small_uints::IntoFr;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
+use advanced_circuit_component::franklin_crypto::bellman::{Engine, Field, SynthesisError};
+use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
+use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::custom_rescue_gate::Rescue5CustomGate;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::Assignment;
+use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
+use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
+use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, variable_length_hash};
+use advanced_circuit_component::glue::prepacked_long_comparison;
+use advanced_circuit_component::glue::traits::get_vec_witness_raw;
+use advanced_circuit_component::project_ref;
+use advanced_circuit_component::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
+use advanced_circuit_component::recursion::recursion_tree::AggregationParameters;
+use advanced_circuit_component::recursion::transcript::TranscriptGadget;
+use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
+use advanced_circuit_component::rescue_poseidon::HashParams;
+use advanced_circuit_component::traits::CSAllocatable;
+use advanced_circuit_component::traits::CircuitEmpty;
+use advanced_circuit_component::vm::partitioner::smart_or;
+use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 
 impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
     type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
@@ -248,20 +248,20 @@ pub fn aggregate_oracle_proofs<
 mod tests {
     use crate::crypto_utils::PaddingCryptoComponent;
     use crate::oracle_aggregation::aggregation::aggregate_oracle_proofs;
-    use franklin_crypto::bellman::bn256::Fq;
-    use franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly, VerificationKey};
-    use franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
-    use franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
-    use franklin_crypto::plonk::circuit::bigint::RnsParameters;
-    use sync_vm::recursion::get_base_placeholder_point_for_accumulators;
-    use sync_vm::recursion::recursion_tree::AggregationParameters;
-    use sync_vm::recursion::transcript::GenericTranscriptGadget;
-    use sync_vm::rescue_poseidon::PoseidonParams;
-    use sync_vm::testing::Bn256;
-    use sync_vm::traits::GenericHasher;
-    use sync_vm::utils::bn254_rescue_params;
-    use sync_vm::vm::tables::BitwiseLogicTable;
-    use sync_vm::vm::VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
+    use advanced_circuit_component::franklin_crypto::bellman::bn256::Fq;
+    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly, VerificationKey};
+    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
+    use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
+    use advanced_circuit_component::recursion::get_base_placeholder_point_for_accumulators;
+    use advanced_circuit_component::recursion::recursion_tree::AggregationParameters;
+    use advanced_circuit_component::recursion::transcript::GenericTranscriptGadget;
+    use advanced_circuit_component::rescue_poseidon::PoseidonParams;
+    use advanced_circuit_component::testing::Bn256;
+    use advanced_circuit_component::traits::GenericHasher;
+    use advanced_circuit_component::utils::bn254_rescue_params;
+    use advanced_circuit_component::vm::tables::BitwiseLogicTable;
+    use advanced_circuit_component::vm::VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
     use crate::bellman::plonk::better_better_cs::proof::Proof;
 
     type ActualConstraintSystem = TrivialAssembly<
@@ -271,7 +271,7 @@ mod tests {
     >;
 
     fn generate_test_constraint_system() -> ActualConstraintSystem {
-        let (mut cs, _, _) = sync_vm::testing::create_test_artifacts_with_optimized_gate();
+        let (mut cs, _, _) = advanced_circuit_component::testing::create_test_artifacts_with_optimized_gate();
         let columns3 = vec![
             PolyIdentifier::VariablesPolynomial(0),
             PolyIdentifier::VariablesPolynomial(1),
