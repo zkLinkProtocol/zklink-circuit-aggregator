@@ -158,6 +158,7 @@ pub const BLOCK_AGG_NUM: usize = 36;
 #[derive(Derivative, CSWitnessable)]
 #[derivative(Clone, Debug)]
 pub struct FinalAggregationOutputData<E: Engine> {
+    pub total_agg_num: Num<E>,
     pub vks_commitment: Num<E>,
     pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
     pub oracle_data: OracleOnChainData<E>,

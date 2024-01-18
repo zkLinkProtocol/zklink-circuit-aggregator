@@ -244,6 +244,7 @@ pub fn final_aggregation<
         RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME,
     )?;
     let public_input_data = FinalAggregationOutputData::<E> {
+        total_agg_num: Num::alloc(cs, Some(E::Fr::from_repr((num_proofs_aggregated as u64).into()).unwrap()))?,
         vks_commitment,
         blocks_commitments: block_aggregation_data.blocks_commitments,
         oracle_data: OracleOnChainData {
