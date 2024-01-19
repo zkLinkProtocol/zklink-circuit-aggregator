@@ -1,6 +1,6 @@
 use crate::bellman::bn256::Bn256;
 use crate::params::{CommonCryptoParams, RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
-use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof};
+use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo};
 use cs_derive::*;
 use derivative::Derivative;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
@@ -11,36 +11,35 @@ use advanced_circuit_component::franklin_crypto::bellman::SynthesisError;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::Num;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
 use std::collections::BTreeMap;
-use advanced_circuit_component::glue::optimizable_queue::simulate_variable_length_hash;
-use advanced_circuit_component::recursion::aggregation::VkInRns;
 use advanced_circuit_component::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
 use advanced_circuit_component::testing::create_test_artifacts;
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::vm::structural_eq::*;
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
-pub const ALL_AGGREGATION_TYPES: [OracleAggregationType; ORACLE_CIRCUIT_TYPES_NUM] = [
-    OracleAggregationType::AggregationNull,
-    OracleAggregationType::Aggregation1,
-    OracleAggregationType::Aggregation2,
-    OracleAggregationType::Aggregation3,
-    OracleAggregationType::Aggregation4,
-    OracleAggregationType::Aggregation5,
+pub const ALL_AGGREGATION_TYPES: [OracleCircuitType; ORACLE_CIRCUIT_TYPES_NUM] = [
+    OracleCircuitType::AggregationNull,
+    OracleCircuitType::Aggregation1,
+    OracleCircuitType::Aggregation2,
+    OracleCircuitType::Aggregation3,
+    OracleCircuitType::Aggregation4,
+    OracleCircuitType::Aggregation5,
 ];
 
 pub struct OracleAggregationCircuit<'a, E: Engine> {
     pub(crate) oracle_inputs_data: Vec<OracleOutputDataWitness<E>>,
-    pub(crate) aggregation_type_set: Vec<OracleAggregationType>,
-    pub(crate) vks_commitments_set: Vec<E::Fr>,
-    pub(crate) vk_encoding_witnesses: Vec<Vec<E::Fr>>,
-    pub(crate) proof_witnesses: Vec<UniformProof<E>>,
+    pub(crate) proof_witnesses: Vec<(OracleCircuitType, UniformProof<E>)>,
+
+    pub(crate) vks_set: BTreeMap<OracleCircuitType, VkEncodeInfo<E>>,
+    pub(crate) vk_encoding_witnesses: Vec<[E::Fr; VK_ENCODING_LENGTH]>,
 
     pub output: Option<OracleAggregationOutputDataWitness<E>>,
+    pub padding_component: PaddingCryptoComponent<E>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
 impl OracleAggregationCircuit<'_, Bn256> {
-    pub fn circuit_default(agg_num: usize) -> Self {
+    pub fn circuit_default(agg_num: usize, total_oracle_type_num: usize) -> Self {
         assert!(agg_num <= 35);
         Self {
             oracle_inputs_data: vec![
@@ -48,30 +47,25 @@ impl OracleAggregationCircuit<'_, Bn256> {
                 );
                 agg_num
             ],
-            aggregation_type_set: vec![Default::default(); agg_num],
-            proof_witnesses: vec![UniformProof::empty(); agg_num],
-            vks_commitments_set: vec![Default::default(); ORACLE_CIRCUIT_TYPES_NUM],
-            vk_encoding_witnesses: vec![
-                vec![Default::default(); VK_ENCODING_LENGTH];
-                ORACLE_CIRCUIT_TYPES_NUM
-            ],
+            proof_witnesses: vec![(0.into(), UniformProof::empty()); agg_num],
+            vks_set: (0..total_oracle_type_num).map(|n| (n.into(), Default::default())).collect(),
+            vk_encoding_witnesses: vec![[Default::default(); VK_ENCODING_LENGTH]; total_oracle_type_num],
             params: &COMMON_CRYPTO_PARAMS,
             output: None,
+            padding_component: PaddingCryptoComponent::default(),
         }
     }
 
     pub fn generate(
         oracle_inputs_data: Vec<OracleOutputDataWitness<Bn256>>,
-        aggregation_type_set: Vec<OracleAggregationType>,
-        proof_witnesses: Vec<UniformProof<Bn256>>,
-        vks: BTreeMap<OracleAggregationType, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
+        proof_witnesses: Vec<(OracleCircuitType, UniformProof<Bn256>)>,
+        vks: BTreeMap<OracleCircuitType, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
+        padding_proof: UniformProof<Bn256>
     ) -> Self {
         let num_proofs_to_aggregate = oracle_inputs_data.len();
-        assert_eq!(num_proofs_to_aggregate, aggregation_type_set.len());
         assert_eq!(num_proofs_to_aggregate, proof_witnesses.len());
-        for (aggregation_type, proof) in aggregation_type_set.iter().zip(proof_witnesses.iter()) {
-            let vk = vks.get(aggregation_type).unwrap();
-            println!("vks1");
+        for (circuit_type, proof) in proof_witnesses.iter() {
+            let vk = vks.get(circuit_type).unwrap();
             assert!(
                 better_better_cs::verifier::verify::<_, _, RescueTranscriptForRecursion<'_, _>>(
                     vk,
@@ -83,49 +77,44 @@ impl OracleAggregationCircuit<'_, Bn256> {
             );
         }
 
-        let mut vks_commitments_set = Vec::with_capacity(vks.len());
-        let mut vk_encoding_witnesses = Vec::with_capacity(vks.len());
-        let commit_function = COMMON_CRYPTO_PARAMS.poseidon_hash();
-        for (_, vk) in vks {
-            let vk_encoding = VkInRns {
-                vk: Some(vk),
-                rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
-            }
-            .encode()
-            .unwrap();
-            let vk_commitment = simulate_variable_length_hash(&vk_encoding, &commit_function);
-            vk_encoding_witnesses.push(vk_encoding);
-            vks_commitments_set.push(vk_commitment);
-        }
+        let padding_vk = vks.get(&OracleCircuitType::AggregationNull).cloned().unwrap();
+        let vks_set = vks
+            .into_iter()
+            .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
+            .collect::<BTreeMap<OracleCircuitType, _>>();
+        let vk_encoding_witnesses = proof_witnesses
+            .iter()
+            .map(|(t, _)| vks_set.get(t).unwrap().vk_encoding_witness)
+            .collect::<Vec<_>>();
 
         let mut witness = Self {
             oracle_inputs_data,
-            aggregation_type_set,
-            vks_commitments_set,
+            vks_set,
             vk_encoding_witnesses,
             proof_witnesses,
             params: &COMMON_CRYPTO_PARAMS,
             output: None,
+            padding_component: PaddingCryptoComponent::default(),
         };
         let agg_params = witness.params.aggregation_params();
         let rns_params = witness.params.rns_params.clone();
         let commit_hash = witness.params.poseidon_hash();
         let transcript_params = &witness.params.rescue_params;
-
         let padding = PaddingCryptoComponent::new(
-            VerificationKey::empty(),
-            UniformProof::empty(),
+            padding_vk,
+            padding_proof,
             &commit_hash,
             transcript_params,
             &rns_params,
         );
-        let params = (num_proofs_to_aggregate, rns_params, agg_params, padding, None);
+        let params = (num_proofs_to_aggregate, rns_params, agg_params, padding.clone(), None);
         let (mut cs, ..) = create_test_artifacts();
         let (_public_input, public_input_data) =
             aggregate_oracle_proofs(&mut cs, Some(&witness), &commit_hash, params)
                 .expect("Failed to oracle aggregate");
 
         witness.output = public_input_data.create_witness();
+        witness.padding_component = padding;
         witness
     }
 }
@@ -193,7 +182,7 @@ impl<E: Engine> CircuitEmpty<E> for OracleOutputData<E> {
 #[derive(
     Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq, serde::Serialize, serde::Deserialize,
 )]
-pub enum OracleAggregationType {
+pub enum OracleCircuitType {
     AggregationNull = 0, // For padding
     Aggregation1 = 1,
     Aggregation2 = 2,
@@ -202,7 +191,7 @@ pub enum OracleAggregationType {
     Aggregation5 = 5,
 }
 
-impl From<usize> for OracleAggregationType {
+impl From<usize> for OracleCircuitType {
     fn from(value: usize) -> Self {
         match value {
             0 => Self::AggregationNull,
@@ -216,7 +205,7 @@ impl From<usize> for OracleAggregationType {
     }
 }
 
-impl Default for OracleAggregationType {
+impl Default for OracleCircuitType {
     fn default() -> Self {
         Self::AggregationNull
     }

@@ -1,6 +1,7 @@
+use std::collections::BTreeMap;
 use crate::oracle_aggregation::OracleAggregationOutputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
-use crate::{final_aggregation, OracleAggregationOutputData, PaddingCryptoComponent, UniformCircuit, UniformProof};
+use crate::{final_aggregation, OracleAggregationOutputData, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo};
 use cs_derive::*;
 use derivative::Derivative;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
@@ -11,33 +12,32 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolea
 use advanced_circuit_component::franklin_crypto::plonk::circuit::byte::{Byte, IntoBytes};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, simulate_variable_length_hash};
-use advanced_circuit_component::recursion::aggregation::VkInRns;
-use advanced_circuit_component::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
+use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
+use advanced_circuit_component::recursion::node_aggregation::NodeAggregationOutputData;
 use advanced_circuit_component::recursion::recursion_tree::NUM_LIMBS;
 use advanced_circuit_component::scheduler::block_header::keccak_output_into_bytes;
 use advanced_circuit_component::testing::{Bn256, create_test_artifacts};
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use advanced_circuit_component::vm::structural_eq::*;
+use recursive_aggregation_circuit::witness::{BLOCK_AGG_NUM, BlockAggregationOutputData, BlockAggregationOutputDataWitness};
 
 pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationOutputDataWitness<E>,
     pub oracle_aggregation_results: Vec<OracleAggregationOutputDataWitness<E>>,
 
-    pub oracle_vk_encoding_witness: Vec<E::Fr>,
-    pub oracle_vk_commitment: E::Fr,
-    pub block_vk_encoding_witness: Vec<E::Fr>,
-    pub block_vk_commitment: E::Fr,
-    pub block_proof_witness: UniformProof<E>,
-    pub oracle_proof_witnesses: Vec<UniformProof<E>>,
+    pub oracle_proof: Vec<(usize, UniformProof<E>)>,
+    pub block_proof: (usize, UniformProof<E>),
+
+    pub oracle_vks_set: BTreeMap<usize, VkEncodeInfo<E>>,
+    pub block_vks_set: BTreeMap<usize, VkEncodeInfo<E>>,
 
     pub output: Option<FinalAggregationOutputDataWitness<E>>,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
 impl FinalAggregationCircuit<'_, Bn256> {
-    pub fn circuit_default(oracle_agg_num: usize) -> Self {
+    pub fn circuit_default(oracle_agg_num: usize, total_block_vk_type_num: usize, total_oracle_vk_type_num: usize) -> Self {
         assert!(oracle_agg_num <= 17);
         Self {
             block_aggregation_result:
@@ -49,13 +49,12 @@ impl FinalAggregationCircuit<'_, Bn256> {
                 oracle_agg_num
             ],
 
-            oracle_vk_encoding_witness: vec![Default::default(); VK_ENCODING_LENGTH],
-            oracle_vk_commitment: Default::default(),
-            block_vk_encoding_witness: vec![Default::default(); VK_ENCODING_LENGTH],
-            block_vk_commitment: Default::default(),
+            block_proof: (0, UniformProof::empty()),
+            oracle_proof: vec![(0, UniformProof::empty()); oracle_agg_num],
 
-            block_proof_witness: UniformProof::empty(),
-            oracle_proof_witnesses: vec![UniformProof::empty(); oracle_agg_num],
+            oracle_vks_set: (0..total_oracle_vk_type_num).map(|n| (n, Default::default())).collect(),
+            block_vks_set: (0..total_block_vk_type_num).map(|n| (n, Default::default())).collect(),
+
             output: None,
             params: &COMMON_CRYPTO_PARAMS,
         }
@@ -63,45 +62,33 @@ impl FinalAggregationCircuit<'_, Bn256> {
 
     pub fn generate(
         block_aggregation_result: BlockAggregationOutputDataWitness<Bn256>,
+        block_proof: (usize, UniformProof<Bn256>),
+        block_agg_vks: BTreeMap<usize, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
         oracle_aggregation_results: Vec<OracleAggregationOutputDataWitness<Bn256>>,
-        oracle_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
-        block_vk: VerificationKey<Bn256, UniformCircuit<Bn256>>,
-        block_proof_witness: UniformProof<Bn256>,
-        oracle_proof_witnesses: Vec<UniformProof<Bn256>>,
+        oracle_proof: Vec<(usize, UniformProof<Bn256>)>,
+        oracle_agg_vks: BTreeMap<usize, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
     ) -> Self {
         assert_eq!(
             oracle_aggregation_results.len(),
-            oracle_proof_witnesses.len()
+            oracle_proof.len()
         );
 
-        let commit_function = COMMON_CRYPTO_PARAMS.poseidon_hash();
-        let oracle_vk_encoding_witness = VkInRns {
-            vk: Some(oracle_vk),
-            rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
-        }
-        .encode()
-        .unwrap();
-        let oracle_vk_commitment =
-            simulate_variable_length_hash(&oracle_vk_encoding_witness, &commit_function);
-
-        let block_vk_encoding_witness = VkInRns {
-            vk: Some(block_vk),
-            rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
-        }
-        .encode()
-        .unwrap();
-        let block_vk_commitment =
-            simulate_variable_length_hash(&block_vk_encoding_witness, &commit_function);
+        let oracle_vks_commitments_set = oracle_agg_vks
+            .into_iter()
+            .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
+            .collect();
+        let block_vks_commitments_set = block_agg_vks
+            .into_iter()
+            .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
+            .collect();
 
         let mut witness = Self {
             block_aggregation_result,
             oracle_aggregation_results,
-            oracle_vk_encoding_witness,
-            oracle_vk_commitment,
-            block_vk_encoding_witness,
-            block_vk_commitment,
-            block_proof_witness,
-            oracle_proof_witnesses,
+            block_proof,
+            oracle_proof,
+            oracle_vks_set: oracle_vks_commitments_set,
+            block_vks_set: block_vks_commitments_set,
             output: None,
             params: &COMMON_CRYPTO_PARAMS,
         };
@@ -109,24 +96,16 @@ impl FinalAggregationCircuit<'_, Bn256> {
         let agg_params = witness.params.aggregation_params();
         let rns_params = witness.params.rns_params.clone();
         let commit_hash = witness.params.poseidon_hash();
-        let transcript_params = &witness.params.rescue_params;
-        let padding = PaddingCryptoComponent::new(
-            VerificationKey::empty(),
-            UniformProof::empty(),
-            &commit_hash,
-            transcript_params,
-            &rns_params,
-        );
         let params = (
-            witness.oracle_proof_witnesses.len() + 1,
+            witness.oracle_proof.len(),
             rns_params,
             agg_params,
-            padding,
+            PaddingCryptoComponent::default(),
             Default::default(),
             None,
         );
         let (mut cs, ..) = create_test_artifacts();
-        let (_public_input, public_input_data) = final_aggregation(&mut cs, Some(&witness), &commit_hash, params)
+        let (_public_input, public_input_data) = final_aggregation(&mut cs, &witness, &commit_hash, params)
             .expect("Failed to final aggregate");
         witness.output = public_input_data.create_witness();
 
@@ -134,26 +113,27 @@ impl FinalAggregationCircuit<'_, Bn256> {
     }
 }
 
-#[derive(
-    Derivative,
-    CSAllocatable,
-    CSWitnessable,
-    CSPackable,
-    CSSelectable,
-    CSEqual,
-    CSEncodable,
-    CSDecodable,
-    CSVariableLengthEncodable,
-)]
-#[derivative(Clone, Debug)]
-pub struct BlockAggregationOutputData<E: Engine> {
-    pub vk_root: Num<E>,
-    pub final_price_commitment: Num<E>, // consider previous_price_hash^2 + this_price_hash
-    pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
-    pub aggregation_output_data: NodeAggregationOutputData<E>,
-}
+// #[derive(
+//     Derivative,
+//     CSAllocatable,
+//     CSWitnessable,
+//     CSPackable,
+//     CSSelectable,
+//     CSEqual,
+//     CSEncodable,
+//     CSDecodable,
+//     CSVariableLengthEncodable,
+// )]
+// #[derivative(Clone, Debug)]
+// pub struct BlockAggregationOutputData<E: Engine> {
+//     pub vk_root: Num<E>,
+//     pub final_price_commitment: Num<E>, // consider previous_price_hash^2 + this_price_hash
+//     pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
+//     pub aggregation_output_data: NodeAggregationOutputData<E>,
+// }
 
-pub const BLOCK_AGG_NUM: usize = 36;
+// pub const BLOCK_AGG_NUM: usize = 36;
+
 // On-chain information
 #[derive(Derivative, CSWitnessable)]
 #[derivative(Clone, Debug)]
