@@ -1,11 +1,15 @@
+#![allow(dead_code)]
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
+use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::Num;
+use advanced_circuit_component::glue::optimizable_queue::variable_length_hash;
 use advanced_circuit_component::recursion::node_aggregation::VK_ENCODING_LENGTH;
 use advanced_circuit_component::traits::CSWitnessable;
 use circuit_testing::create_vk;
 use recursive_aggregation_circuit::bellman::Engine;
 use crate::bellman::bn256::Bn256;
-use crate::bellman::plonk::better_better_cs::cs::{Circuit, PlonkCsWidth4WithNextStepAndCustomGatesParams};
+use crate::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams};
 use crate::{ORACLE_CIRCUIT_TYPES_NUM, OracleAggregationCircuit, OracleOutputData, PaddingCryptoComponent, UniformProof, UniformVerificationKey};
 use crate::bellman::SynthesisError;
 use crate::params::COMMON_CRYPTO_PARAMS;
@@ -34,9 +38,8 @@ impl<C: CircuitGenerator<Bn256>> VerificationKeyManager<C, Bn256> {
     }
 }
 
-trait CircuitGenerator<E: Engine>: Circuit<E> {
+pub trait CircuitGenerator<E: Engine>: Circuit<E> {
     type Params: Ord + Clone;
-    // type CircuitType: Circuit<E>;
     fn generate(params: &Self::Params) -> Self;
 }
 
@@ -62,4 +65,22 @@ impl CircuitGenerator<Bn256> for OracleAggregationCircuit<'_, Bn256> {
             padding_component: PaddingCryptoComponent::default(),
         }
     }
+}
+
+pub fn enforce_commit_vks_commitments<
+    CS: ConstraintSystem<E>,
+    E: Engine,
+    R: CircuitArithmeticRoundFunction<E, AWIDTH, SWIDTH, StateElement = Num<E>>,
+    const AWIDTH: usize,
+    const SWIDTH: usize,
+>(
+    cs: &mut CS,
+    vks_commitments: Vec<(Num<E>, Num<E>)>,
+    commit_function: &R
+) -> Result<Num<E>, SynthesisError> {
+    let commitments = vks_commitments
+        .into_iter()
+        .map(|(_, commitment)| commitment)
+        .collect::<Vec<_>>();
+    variable_length_hash(cs, &commitments, commit_function)
 }

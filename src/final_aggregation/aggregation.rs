@@ -35,6 +35,7 @@ use recursive_aggregation_circuit::BlockAggregationOutputData;
 use crate::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
 use crate::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
 use crate::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
+use crate::key_manager::enforce_commit_vks_commitments;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
 const GUARDIAN_SET_INDEX: u8 = 3;
@@ -115,7 +116,7 @@ pub fn final_aggregation<
         let name = BITWISE_LOGICAL_OPS_TABLE_NAME;
         let bitwise_logic_table = LookupTableApplication::new(
             name,
-            BitwiseLogicTable::new(&name, 8),
+            BitwiseLogicTable::new(name, 8),
             columns3.clone(),
             None,
             true,
@@ -128,25 +129,24 @@ pub fn final_aggregation<
     let oracle_aggregation_results = witness.oracle_aggregation_results.clone();
     let (block_circuit_type, block_aggregation_proof) = witness.block_proof.clone();
     let oracle_aggregation_proof = witness.oracle_proof.clone();
-    let mut oracle_vks_commitments_set = witness.oracle_vks_set.clone();
-    let mut block_vks_commitments_set = witness.block_vks_set.clone();
+    let oracle_vks_info = witness.oracle_vks_set.clone();
+    let block_vks_info = witness.block_vks_set.clone();
 
     let mut vks_raw_elements_witness = vec![];
-    vks_raw_elements_witness.push(block_vks_commitments_set.get(&block_circuit_type).unwrap().vk_encoding_witness.clone());
+    vks_raw_elements_witness.push(block_vks_info.get(&block_circuit_type).unwrap().vk_encoding_witness);
     for (circuit_type, _) in &oracle_aggregation_proof {
-        vks_raw_elements_witness.push(oracle_vks_commitments_set.get(circuit_type).unwrap().vk_encoding_witness.clone());
+        vks_raw_elements_witness.push(oracle_vks_info.get(circuit_type).unwrap().vk_encoding_witness);
     }
 
     // prepare vk_commitments circuit variables
-    let mut oracle_vk_commitments = Vec::with_capacity(oracle_vks_commitments_set.len());
-    for (circuit_type, vk_info) in oracle_vks_commitments_set {
+    let mut oracle_vk_commitments = Vec::with_capacity(oracle_vks_info.len());
+    for (circuit_type, vk_info) in oracle_vks_info {
         let circuit_type = Num::<E>::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk_commitment = Num::alloc(cs, Some(vk_info.vk_commitment))?;
         oracle_vk_commitments.push((circuit_type, vk_commitment));
     }
-
-    let mut block_vk_commitments = Vec::with_capacity(block_vks_commitments_set.len());
-    for (circuit_type, vk_info) in block_vks_commitments_set {
+    let mut block_vk_commitments = Vec::with_capacity(block_vks_info.len());
+    for (circuit_type, vk_info) in block_vks_info {
         let circuit_type = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk_commitment = Num::alloc(cs, Some(vk_info.vk_commitment))?;
         block_vk_commitments.push((circuit_type, vk_commitment));
@@ -244,8 +244,10 @@ pub fn final_aggregation<
         )?;
 
     let vks_composition_data = VksCompositionData {
-        oracle_vks_hash: block_aggregation_data.vk_root,
-        block_vks_commitment: first_oracle_agg_data.oracle_vks_hash,
+        oracle_vks_hash: first_oracle_agg_data.oracle_vks_hash,
+        block_vks_root: block_aggregation_data.vk_root,
+        oracle_agg_vks_commitment: enforce_commit_vks_commitments(cs, oracle_vk_commitments, commit_function)?,
+        block_agg_vks_commitment: enforce_commit_vks_commitments(cs, block_vk_commitments, commit_function)?,
     };
     let vks_commitment = commit_encodable_item(cs, &vks_composition_data, commit_function)?;
 

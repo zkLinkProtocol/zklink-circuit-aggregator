@@ -226,7 +226,9 @@ impl<E: Engine> FinalAggregationOutputData<E> {
 #[derivative(Clone, Debug)]
 pub struct VksCompositionData<E: Engine> {
     pub oracle_vks_hash: Num<E>,
-    pub block_vks_commitment: Num<E>,
+    pub block_vks_root: Num<E>,
+    pub oracle_agg_vks_commitment: Num<E>,
+    pub block_agg_vks_commitment: Num<E>,
 }
 
 #[derive(

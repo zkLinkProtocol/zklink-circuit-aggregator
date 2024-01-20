@@ -15,7 +15,7 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::tables::inscrib
 use advanced_circuit_component::franklin_crypto::plonk::circuit::Assignment;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
-use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, variable_length_hash};
+use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
 use advanced_circuit_component::glue::prepacked_long_comparison;
 use advanced_circuit_component::project_ref;
 use advanced_circuit_component::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
@@ -27,6 +27,7 @@ use advanced_circuit_component::traits::CSAllocatable;
 use advanced_circuit_component::traits::CircuitEmpty;
 use advanced_circuit_component::vm::partitioner::{smart_and, smart_or};
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
+use crate::key_manager::enforce_commit_vks_commitments;
 
 impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
     type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
@@ -95,7 +96,7 @@ pub fn aggregate_oracle_proofs<
     let oracle_inputs_data = project_ref!(witness, oracle_inputs_data).cloned();
     let aggregation_proofs = project_ref!(witness, proof_witnesses).cloned();
     let vks_raw_elements_witness = project_ref!(witness, vk_encoding_witnesses).cloned();
-    let mut vks_set = project_ref!(witness, vks_set).cloned();
+    let vks_set = project_ref!(witness, vks_set).cloned();
 
     // prepare vk_commitments circuit variables
     let mut vk_commitments = Vec::with_capacity(ORACLE_CIRCUIT_TYPES_NUM);
@@ -207,13 +208,8 @@ pub fn aggregate_oracle_proofs<
         )?;
 
     // collect oracle aggregation output data
-    let vk_commitments = vk_commitments
-        .into_iter()
-        .map(|(_, commitment)| commitment)
-        .collect::<Vec<_>>();
-    let oracle_vks_hash = variable_length_hash(cs, &vk_commitments, commit_function)?;
     let public_input_data = OracleAggregationOutputData {
-        oracle_vks_hash,
+        oracle_vks_hash: enforce_commit_vks_commitments(cs, vk_commitments, commit_function)?,
         guardian_set_hash,
         final_price_commitment,
         earliest_publish_time,
