@@ -18,7 +18,7 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::hashes_with_tab
 use advanced_circuit_component::franklin_crypto::plonk::circuit::linear_combination::LinearCombination;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
-use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
+use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, commit_variable_length_encodable_item};
 use advanced_circuit_component::glue::prepacked_long_comparison;
 use advanced_circuit_component::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
 use advanced_circuit_component::recursion::recursion_tree::{AggregationParameters, NUM_LIMBS};
@@ -169,7 +169,7 @@ pub fn final_aggregation<
     let vk_commitment_to_use = check_and_select_vk_commitment(cs, &block_vk_commitments, block_circuit_type)?;
 
     used_key_commitments.push(vk_commitment_to_use);
-    inputs.push(commit_encodable_item(cs, &block_aggregation_data, commit_function)?);
+    inputs.push(commit_variable_length_encodable_item(cs, &block_aggregation_data, commit_function)?);
     casted_aggregation_results.push(block_aggregation_data.aggregation_output_data.clone());
 
     let mut oracle_price_commitment = Num::zero();

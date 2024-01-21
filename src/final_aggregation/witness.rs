@@ -12,7 +12,7 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolea
 use advanced_circuit_component::franklin_crypto::plonk::circuit::byte::{Byte, IntoBytes};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
+use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, commit_variable_length_encodable_item};
 use advanced_circuit_component::recursion::node_aggregation::NodeAggregationOutputData;
 use advanced_circuit_component::recursion::recursion_tree::NUM_LIMBS;
 use advanced_circuit_component::scheduler::block_header::keccak_output_into_bytes;
@@ -20,7 +20,7 @@ use advanced_circuit_component::testing::{Bn256, create_test_artifacts};
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use advanced_circuit_component::vm::structural_eq::*;
-use recursive_aggregation_circuit::witness::{BLOCK_AGG_NUM, BlockAggregationOutputData, BlockAggregationOutputDataWitness};
+use recursive_aggregation_circuit::witness::{BlockAggregationOutputData, BlockAggregationOutputDataWitness};
 
 pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationOutputDataWitness<E>,
@@ -113,34 +113,18 @@ impl FinalAggregationCircuit<'_, Bn256> {
     }
 }
 
-// #[derive(
-//     Derivative,
-//     CSAllocatable,
-//     CSWitnessable,
-//     CSPackable,
-//     CSSelectable,
-//     CSEqual,
-//     CSEncodable,
-//     CSDecodable,
-//     CSVariableLengthEncodable,
-// )]
-// #[derivative(Clone, Debug)]
-// pub struct BlockAggregationOutputData<E: Engine> {
-//     pub vk_root: Num<E>,
-//     pub final_price_commitment: Num<E>, // consider previous_price_hash^2 + this_price_hash
-//     pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
-//     pub aggregation_output_data: NodeAggregationOutputData<E>,
-// }
-
-// pub const BLOCK_AGG_NUM: usize = 36;
-
 // On-chain information
-#[derive(Derivative, CSWitnessable)]
+#[derive(
+    Derivative,
+    CSAllocatable,
+    CSWitnessable,
+    CSVariableLengthEncodable
+)]
 #[derivative(Clone, Debug)]
 pub struct FinalAggregationOutputData<E: Engine> {
     pub total_agg_num: Num<E>,
     pub vks_commitment: Num<E>,
-    pub blocks_commitments: [Num<E>; BLOCK_AGG_NUM],
+    pub blocks_commitments: Vec<Num<E>>,
     pub oracle_data: OracleOnChainData<E>,
     pub aggregation_output_data: NodeAggregationOutputData<E>,
 }
@@ -158,7 +142,7 @@ impl<E: Engine> FinalAggregationOutputData<E> {
     ) -> Result<Vec<Num<E>>, SynthesisError> {
         let mut encodes = Vec::with_capacity(3 + NUM_LIMBS * 4);
         encodes.push(self.vks_commitment);
-        encodes.push(commit_encodable_item(
+        encodes.push(commit_variable_length_encodable_item(
             cs,
             &self.blocks_commitments,
             commit_function,
@@ -185,7 +169,7 @@ impl<E: Engine> FinalAggregationOutputData<E> {
         let mut encodes = Vec::with_capacity(len * 32);
         encodes.extend(self.vks_commitment.into_be_bytes(cs)?);
 
-        for block_commitment  in self.blocks_commitments {
+        for block_commitment  in &self.blocks_commitments {
             encodes.extend(block_commitment.into_be_bytes(cs)?);
         }
 
