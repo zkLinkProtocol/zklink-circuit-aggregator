@@ -4,12 +4,13 @@ use advanced_circuit_component::recursion::aggregation::MainGateParametrizedCirc
 mod crypto_utils;
 mod final_aggregation;
 mod oracle_aggregation;
+mod key_manager;
 pub mod params;
 
 pub use advanced_circuit_component::franklin_crypto;
 pub use advanced_circuit_component::franklin_crypto::bellman; // for cs_derive proc macro
-pub use advanced_circuit_component as advanced_components;
 pub use advanced_circuit_component::utils; // for cs_derive proc macro
+pub use advanced_circuit_component as advanced_components;
 
 pub use crypto_utils::*;
 pub use final_aggregation::*;

@@ -1,13 +1,12 @@
 use crate::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
 use crate::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
-use crate::bellman::plonk::better_better_cs::setup::VerificationKey;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
-    OracleAggregationCircuit, OracleAggregationOutputData, OracleAggregationType, OracleOutputData,
+    OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,
 };
-use crate::{UniformProof, ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
+use crate::{ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
-use advanced_circuit_component::franklin_crypto::bellman::{Engine, Field, SynthesisError};
+use advanced_circuit_component::franklin_crypto::bellman::{Engine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
@@ -16,9 +15,8 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::tables::inscrib
 use advanced_circuit_component::franklin_crypto::plonk::circuit::Assignment;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
-use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, variable_length_hash};
+use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
 use advanced_circuit_component::glue::prepacked_long_comparison;
-use advanced_circuit_component::glue::traits::get_vec_witness_raw;
 use advanced_circuit_component::project_ref;
 use advanced_circuit_component::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
 use advanced_circuit_component::recursion::recursion_tree::AggregationParameters;
@@ -27,8 +25,9 @@ use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
 use advanced_circuit_component::rescue_poseidon::HashParams;
 use advanced_circuit_component::traits::CSAllocatable;
 use advanced_circuit_component::traits::CircuitEmpty;
-use advanced_circuit_component::vm::partitioner::smart_or;
+use advanced_circuit_component::vm::partitioner::{smart_and, smart_or};
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
+use crate::key_manager::enforce_commit_vks_commitments;
 
 impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
     type MainGate = SelectorOptimizedWidth4MainGateWithDNext;
@@ -40,8 +39,8 @@ impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
         let transcript_params = &self.params.rescue_params;
 
         let padding = PaddingCryptoComponent::new(
-            VerificationKey::empty(),
-            UniformProof::empty(),
+            self.padding_component.padding_vk.clone(),
+            self.padding_component.padding_proof.clone(),
             &commit_hash,
             transcript_params,
             &rns_params,
@@ -87,54 +86,44 @@ pub fn aggregate_oracle_proofs<
             padding_vk_encoding,
             padding_public_input,
             padding_proof,
+            ..
         },
         g2_elements,
     ) = params;
-    inscribe_default_range_table_for_bit_width_over_first_three_columns(
-        cs,
-        RANGE_CHECK_TABLE_BIT_WIDTH,
-    )?;
+    inscribe_default_range_table_for_bit_width_over_first_three_columns(cs, RANGE_CHECK_TABLE_BIT_WIDTH)?;
 
     // prepare all witness
     let oracle_inputs_data = project_ref!(witness, oracle_inputs_data).cloned();
     let aggregation_proofs = project_ref!(witness, proof_witnesses).cloned();
-    let aggregation_type_set = project_ref!(witness, aggregation_type_set);
-    let vks_raw_elements_witness = project_ref!(witness, vk_encoding_witnesses).map(|el| {
-        let mut result = vec![];
-        for subset in el.iter().cloned() {
-            let r = subset.try_into().unwrap();
-            result.push(r);
-        }
-        result
-    });
-    let mut vks_commitments_set = project_ref!(witness, vks_commitments_set).cloned();
+    let vks_raw_elements_witness = project_ref!(witness, vk_encoding_witnesses).cloned();
+    let vks_set = project_ref!(witness, vks_set).cloned();
 
     // prepare vk_commitments circuit variables
     let mut vk_commitments = Vec::with_capacity(ORACLE_CIRCUIT_TYPES_NUM);
     for circuit_type in ALL_AGGREGATION_TYPES {
-        let circuit_type = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
-        let vk = Num::alloc(
+        let circuit_type_num = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
+        let vk_commitment = Num::alloc(
             cs,
-            get_vec_witness_raw(&mut vks_commitments_set, E::Fr::zero()),
+            vks_set.as_ref().map(|info| info.get(&circuit_type).unwrap().vk_commitment),
         )?;
-        vk_commitments.push((circuit_type, vk));
+        vk_commitments.push((circuit_type_num, vk_commitment));
     }
 
     // check all recursive inputs(oracle circuit output data)
     let mut used_key_commitments = Vec::with_capacity(num_proofs_to_aggregate);
     let mut inputs = Vec::with_capacity(num_proofs_to_aggregate);
-    let (mut guardian_set_hash, mut is_correct_guardian_set_hash) = (Num::zero(), vec![]);
+    let (mut guardian_set_hash, mut is_correct_guardian_set_hash) = (Num::zero(), vec![Boolean::constant(true)]);
     let mut final_price_commitment = Num::zero();
-    let (mut earliest_publish_time, mut is_correct_earliest_publish_time) = (Num::zero(), vec![]);
+    let (mut earliest_publish_time, mut is_correct_earliest_publish_time) = (Num::zero(), vec![Boolean::constant(true)]);
     let mut last_oracle_input_data = OracleOutputData::empty();
     for proof_idx in 0..num_proofs_to_aggregate {
         let used_circuit_type = Num::alloc(
             cs,
-            aggregation_type_set.map(|a| IntoFr::<E>::into_fr(a[proof_idx] as u8)),
+            aggregation_proofs.as_ref().map(|a| IntoFr::<E>::into_fr(a[proof_idx].0 as u8)),
         )?;
         let is_padding = {
             let padding_type = Num::Constant(IntoFr::<E>::into_fr(
-                OracleAggregationType::AggregationNull as u8,
+                OracleCircuitType::AggregationNull as u8,
             ));
             Num::equals(cs, &padding_type, &used_circuit_type)?
         };
@@ -195,9 +184,9 @@ pub fn aggregate_oracle_proofs<
     }
     assert_eq!(used_key_commitments.len(), inputs.len());
     assert_eq!(used_key_commitments.len(), num_proofs_to_aggregate);
-    let is_correct_guardian_set_hash = smart_or(cs, &is_correct_guardian_set_hash)?;
+    let is_correct_guardian_set_hash = smart_and(cs, &is_correct_guardian_set_hash)?;
     Boolean::enforce_equal(cs, &is_correct_guardian_set_hash, &Boolean::constant(true))?;
-    let is_earliest_publish_time = smart_or(cs, &is_correct_earliest_publish_time)?;
+    let is_earliest_publish_time = smart_and(cs, &is_correct_earliest_publish_time)?;
     Boolean::enforce_equal(cs, &is_earliest_publish_time, &Boolean::constant(true))?;
 
     // do actual aggregation work
@@ -206,7 +195,7 @@ pub fn aggregate_oracle_proofs<
             cs,
             used_key_commitments,
             inputs,
-            aggregation_proofs,
+            aggregation_proofs.map(|proofs| proofs.into_iter().unzip::<_, _, Vec<_>, Vec<_>>().1),
             aggregation_params,
             &rns_params,
             padding_proof,
@@ -219,13 +208,8 @@ pub fn aggregate_oracle_proofs<
         )?;
 
     // collect oracle aggregation output data
-    let vk_commitments = vk_commitments
-        .into_iter()
-        .map(|(_, commitment)| commitment)
-        .collect::<Vec<_>>();
-    let oracle_vks_hash = variable_length_hash(cs, &vk_commitments, commit_function)?;
     let public_input_data = OracleAggregationOutputData {
-        oracle_vks_hash,
+        oracle_vks_hash: enforce_commit_vks_commitments(cs, vk_commitments, commit_function)?,
         guardian_set_hash,
         final_price_commitment,
         earliest_publish_time,
@@ -249,7 +233,7 @@ mod tests {
     use crate::crypto_utils::PaddingCryptoComponent;
     use crate::oracle_aggregation::aggregation::aggregate_oracle_proofs;
     use advanced_circuit_component::franklin_crypto::bellman::bn256::Fq;
-    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly, VerificationKey};
+    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly};
     use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
     use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
     use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
@@ -262,7 +246,6 @@ mod tests {
     use advanced_circuit_component::utils::bn254_rescue_params;
     use advanced_circuit_component::vm::tables::BitwiseLogicTable;
     use advanced_circuit_component::vm::VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
-    use crate::bellman::plonk::better_better_cs::proof::Proof;
 
     type ActualConstraintSystem = TrivialAssembly<
         Bn256,
@@ -300,13 +283,7 @@ mod tests {
         let rns_params = RnsParameters::<Bn256, Fq>::new_for_field(68, 110, 4);
         let transcript_params = bn254_rescue_params();
 
-        let padding = PaddingCryptoComponent::new(
-            VerificationKey::empty(),
-            Proof::empty(),
-            &commit_hash,
-            &transcript_params,
-            &rns_params,
-        );
+        let padding = PaddingCryptoComponent::default();
         let agg_params = AggregationParameters::<_, GenericTranscriptGadget<_, _, 2, 3>, _, 2, 3> {
             base_placeholder_point: get_base_placeholder_point_for_accumulators(),
             transcript_params: transcript_params.clone(),

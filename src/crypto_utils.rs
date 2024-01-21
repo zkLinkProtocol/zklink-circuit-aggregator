@@ -1,7 +1,7 @@
-use crate::params::{DefaultRescueParams, RescueTranscriptForRecursion};
-use crate::{UniformCircuit, UniformProof};
-use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
+use crate::params::{COMMON_CRYPTO_PARAMS, DefaultRescueParams, RescueTranscriptForRecursion};
+use crate::{UniformCircuit, UniformProof, UniformVerificationKey};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
 use advanced_circuit_component::franklin_crypto::bellman::Engine;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
@@ -9,6 +9,7 @@ use advanced_circuit_component::glue::optimizable_queue::simulate_variable_lengt
 use advanced_circuit_component::recursion::aggregation::VkInRns;
 use advanced_circuit_component::recursion::node_aggregation::VK_ENCODING_LENGTH;
 use advanced_circuit_component::traits::ArithmeticEncodable;
+use crate::bellman::bn256::Bn256;
 
 #[derive(Debug, Clone)]
 pub struct PaddingCryptoComponent<E: Engine> {
@@ -16,6 +17,19 @@ pub struct PaddingCryptoComponent<E: Engine> {
     pub(crate) padding_vk_encoding: [E::Fr; VK_ENCODING_LENGTH],
     pub(crate) padding_public_input: Vec<E::Fr>,
     pub(crate) padding_proof: UniformProof<E>,
+    pub(crate) padding_vk: UniformVerificationKey<E>,
+}
+
+impl<E: Engine> Default for PaddingCryptoComponent<E> {
+    fn default() -> Self {
+        Self {
+            padding_vk_commitment: Default::default(),
+            padding_vk_encoding: [Default::default(); VK_ENCODING_LENGTH],
+            padding_public_input: vec![Default::default()],
+            padding_proof: UniformProof::empty(),
+            padding_vk: UniformVerificationKey::empty(),
+        }
+    }
 }
 
 impl<E: Engine> PaddingCryptoComponent<E> {
@@ -42,7 +56,7 @@ impl<E: Engine> PaddingCryptoComponent<E> {
         );
 
         let padding_vk_encoding: [_; VK_ENCODING_LENGTH] = VkInRns {
-            vk: Some(padding_vk),
+            vk: Some(padding_vk.clone()),
             rns_params,
         }
         .encode()
@@ -57,6 +71,41 @@ impl<E: Engine> PaddingCryptoComponent<E> {
             padding_vk_encoding,
             padding_public_input: padding_proof.inputs.clone(),
             padding_proof,
+            padding_vk,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VkEncodeInfo<E: Engine> {
+    pub vk_encoding_witness: [E::Fr; VK_ENCODING_LENGTH],
+    pub vk_commitment: E::Fr,
+}
+
+impl VkEncodeInfo<Bn256> {
+    pub fn new(vk: UniformVerificationKey<Bn256>) -> Self {
+        let commit_function = COMMON_CRYPTO_PARAMS.poseidon_hash();
+        let vk_encoding_witness:[_; VK_ENCODING_LENGTH] = VkInRns {
+            vk: Some(vk),
+            rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
+        }
+            .encode()
+            .unwrap()
+            .try_into()
+            .unwrap();
+        let vk_commitment = simulate_variable_length_hash(&vk_encoding_witness, &commit_function);
+        Self {
+            vk_encoding_witness,
+            vk_commitment,
+        }
+    }
+}
+
+impl<E: Engine> Default for VkEncodeInfo<E> {
+    fn default() -> Self {
+        Self {
+            vk_encoding_witness: [Default::default(); VK_ENCODING_LENGTH],
+            vk_commitment: Default::default(),
         }
     }
 }
