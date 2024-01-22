@@ -13,11 +13,11 @@ use crate::bellman::bn256::Bn256;
 
 #[derive(Debug, Clone)]
 pub struct PaddingCryptoComponent<E: Engine> {
-    pub(crate) padding_vk_commitment: E::Fr,
-    pub(crate) padding_vk_encoding: [E::Fr; VK_ENCODING_LENGTH],
-    pub(crate) padding_public_input: Vec<E::Fr>,
-    pub(crate) padding_proof: UniformProof<E>,
-    pub(crate) padding_vk: UniformVerificationKey<E>,
+    pub padding_vk_commitment: E::Fr,
+    pub padding_vk_encoding: [E::Fr; VK_ENCODING_LENGTH],
+    pub padding_public_input: Vec<E::Fr>,
+    pub padding_proof: UniformProof<E>,
+    pub padding_vk: UniformVerificationKey<E>,
 }
 
 impl<E: Engine> Default for PaddingCryptoComponent<E> {

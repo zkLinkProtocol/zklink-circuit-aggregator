@@ -4,7 +4,7 @@ use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,
 };
-use crate::{ALL_AGGREGATION_TYPES, ORACLE_CIRCUIT_TYPES_NUM};
+use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -14,7 +14,6 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::custom_rescue_g
 use advanced_circuit_component::franklin_crypto::plonk::circuit::tables::inscribe_default_range_table_for_bit_width_over_first_three_columns;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::Assignment;
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
 use advanced_circuit_component::glue::optimizable_queue::commit_encodable_item;
 use advanced_circuit_component::glue::prepacked_long_comparison;
 use advanced_circuit_component::project_ref;
@@ -25,7 +24,7 @@ use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
 use advanced_circuit_component::rescue_poseidon::HashParams;
 use advanced_circuit_component::traits::CSAllocatable;
 use advanced_circuit_component::traits::CircuitEmpty;
-use advanced_circuit_component::vm::partitioner::{smart_and, smart_or};
+use advanced_circuit_component::vm::partitioner::smart_and;
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 use crate::key_manager::enforce_commit_vks_commitments;
 
@@ -82,7 +81,7 @@ pub fn aggregate_oracle_proofs<
         rns_params,
         aggregation_params,
         PaddingCryptoComponent {
-            padding_vk_commitment,
+            padding_vk_commitment: _,
             padding_vk_encoding,
             padding_public_input,
             padding_proof,
@@ -139,16 +138,7 @@ pub fn aggregate_oracle_proofs<
             &input_commitment,
         )?;
 
-        let mut vk_commitment_to_use = Num::Constant(padding_vk_commitment);
-        let mut vk_existing_flags = Vec::with_capacity(vk_commitments.len());
-        for (circuit_type, vk_commitment) in vk_commitments.iter() {
-            let is_this = Num::equals(cs, circuit_type, &used_circuit_type)?;
-            vk_commitment_to_use =
-                Num::conditionally_select(cs, &is_this, vk_commitment, &vk_commitment_to_use)?;
-            vk_existing_flags.push(is_this);
-        }
-        let existing_vk = smart_or(cs, &vk_existing_flags)?;
-        can_not_be_false_if_flagged(cs, &existing_vk, &Boolean::constant(true))?;
+        let vk_commitment_to_use = check_and_select_vk_commitment(cs, &vk_commitments, used_circuit_type)?;
 
         guardian_set_hash = oracle_input_data.guardian_set_hash;
         if proof_idx == 0 {

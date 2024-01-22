@@ -60,8 +60,8 @@ fn test_final_aggregation_circuit() {
         ).unwrap();
 
     println!("---------------------------block aggregation circuit start--------------------------------");
-    let block_aggregation_circuit = recursive_aggregation_circuit::test_utils::create_test_block_aggregation_circuit();
-    let block_inputs_data = block_aggregation_circuit.output.clone().unwrap();
+    let (block_aggregation_circuit, aggregation_storage) = recursive_aggregation_circuit::test_utils::create_test_block_aggregation_circuit();
+    let block_output_data = aggregation_storage.generate_witness();
     let (proof, vk ) =
         circuit_testing::prove_and_verify_circuit_for_params::<
             Bn256,
@@ -80,7 +80,7 @@ fn test_final_aggregation_circuit() {
     let block_agg_proof: UniformProof<Bn256> = unsafe { std::mem::transmute(proof) };
     let block_agg_vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(vk) };
     let oracle_aggregation_circuit = FinalAggregationCircuit::generate(
-        block_inputs_data,
+        block_output_data,
         (0, block_agg_proof),
         BTreeMap::from([(0, block_agg_vk)]),
         vec![oracle_agg_output],
