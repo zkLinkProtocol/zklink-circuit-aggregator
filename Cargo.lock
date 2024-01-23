@@ -1554,7 +1554,7 @@ dependencies = [
 [[package]]
 name = "recursive_aggregation_circuit"
 version = "0.1.0"
-source = "git+https://github.com/zkLinkProtocol/link_aggregation_circuit.git?branch=master#371716ba986e925d1055df2de1c1b38662ac8964"
+source = "git+https://github.com/zkLinkProtocol/link_aggregation_circuit.git?branch=master#5f4b0af0ab784f0066cd8d3c0dae715e7ea0f95a"
 dependencies = [
  "advanced_circuit_component",
  "cs_derive",

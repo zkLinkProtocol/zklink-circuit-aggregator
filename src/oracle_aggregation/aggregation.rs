@@ -126,10 +126,11 @@ pub fn aggregate_oracle_proofs<
             ));
             Num::equals(cs, &padding_type, &used_circuit_type)?
         };
-        let oracle_input_data = oracle_inputs_data
-            .as_ref()
-            .map(|data| data[proof_idx].clone());
-        let oracle_input_data = OracleOutputData::alloc_from_witness(cs, oracle_input_data)?;
+
+        let oracle_input_data = OracleOutputData::alloc_from_witness(
+            cs,
+            oracle_inputs_data.as_ref().map(|data| data[proof_idx].clone())
+        )?;
         let input_commitment = commit_encodable_item(cs, &oracle_input_data, commit_function)?;
         let input = Num::conditionally_select(
             cs,

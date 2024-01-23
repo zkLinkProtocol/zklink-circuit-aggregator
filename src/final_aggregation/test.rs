@@ -61,7 +61,7 @@ fn test_final_aggregation_circuit() {
 
     println!("---------------------------block aggregation circuit start--------------------------------");
     let (block_aggregation_circuit, aggregation_storage) = recursive_aggregation_circuit::test_utils::create_test_block_aggregation_circuit();
-    let block_output_data = aggregation_storage.generate_witness();
+    let block_output_data = aggregation_storage.output;
     let (proof, vk ) =
         circuit_testing::prove_and_verify_circuit_for_params::<
             Bn256,
