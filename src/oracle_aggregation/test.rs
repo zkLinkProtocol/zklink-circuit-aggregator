@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
-use crate::{OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey};
+use crate::{OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey, OraclePricesCommitmentWitness};
 use crate::bellman::bn256::Bn256;
 use crate::params::{COMMON_CRYPTO_PARAMS, RescueTranscriptForRecursion};
 
 #[test]
-fn test_all_aggregation_circuit() {
+fn test_oracle_aggregation_circuit() {
     use crate::OracleCircuitType::*;
     use zklink_oracle::ZkLinkOracle;
 
@@ -17,7 +17,12 @@ fn test_all_aggregation_circuit() {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {
             guardian_set_hash: data.guardian_set_hash,
-            final_price_commitment: data.prices_commitment,
+            prices_commitment: OraclePricesCommitmentWitness {
+                prices_commitment: data.prices_commitment.prices_commitment,
+                prices_num: data.prices_commitment.prices_num,
+                prices_commitment_base_sum: data.prices_commitment.prices_commitment_base_sum,
+                _marker: Default::default()
+            },
             earliest_publish_time: data.earliest_publish_time,
             _marker: Default::default(),
         }
@@ -36,7 +41,14 @@ fn test_all_aggregation_circuit() {
         ).unwrap();
     let proof: UniformProof<Bn256> = unsafe { std::mem::transmute(proof) };
     let vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(vk) };
-    let vks = BTreeMap::from([(Aggregation1, vk.clone()), (AggregationNull, vk)]);
+    let vks = BTreeMap::from([
+        (AggregationNull, vk.clone()),
+        (Aggregation1, vk.clone()),
+        (Aggregation2, vk.clone()),
+        (Aggregation3, vk.clone()),
+        (Aggregation4, vk.clone()),
+        (Aggregation5, vk),
+    ]);
     let oracle_aggregation_circuit = OracleAggregationCircuit::generate(
         vec![oracle_inputs_data],
         vec![(Aggregation1, proof.clone())],

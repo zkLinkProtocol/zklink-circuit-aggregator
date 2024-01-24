@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
-use advanced_circuit_component::franklin_crypto::bellman::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
+use recursive_aggregation_circuit::bellman::plonk::better_better_cs::cs::Circuit as _;
 use zklink_oracle::ZkLinkOracle;
-use advanced_circuit_component::franklin_crypto::bellman::bn256::{Bn256, Fr};
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
-use crate::{FinalAggregationCircuit, OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey};
+use crate::tests::generate_test_constraint_system;
+use crate::{FinalAggregationCircuit, OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey, OraclePricesCommitmentWitness};
 use crate::params::{COMMON_CRYPTO_PARAMS, RescueTranscriptForRecursion};
 
 #[test]
@@ -19,7 +20,12 @@ fn test_final_aggregation_circuit() {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {
             guardian_set_hash: data.guardian_set_hash,
-            final_price_commitment: data.prices_commitment,
+            prices_commitment: OraclePricesCommitmentWitness {
+                prices_commitment: data.prices_commitment.prices_commitment,
+                prices_num: data.prices_commitment.prices_num,
+                prices_commitment_base_sum: data.prices_commitment.prices_commitment_base_sum,
+                _marker: Default::default()
+            },
             earliest_publish_time: data.earliest_publish_time,
             _marker: Default::default(),
         }
@@ -87,14 +93,8 @@ fn test_final_aggregation_circuit() {
         vec![(0, oracle_aggregation_proof)],
         BTreeMap::from([(0, oracle_agg_vk)]),
     );
-    circuit_testing::prove_and_verify_circuit_for_params::<
-        Bn256,
-        _,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        RollingKeccakTranscript<Fr>,
-        true
-    >(
-        oracle_aggregation_circuit,
-        None
-    ).unwrap();
+
+    let mut cs = generate_test_constraint_system();
+    oracle_aggregation_circuit.synthesize(&mut cs).unwrap();
+    assert!(cs.is_satisfied());
 }

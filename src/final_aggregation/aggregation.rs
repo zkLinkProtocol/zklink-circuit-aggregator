@@ -173,6 +173,7 @@ pub fn final_aggregation<
     casted_aggregation_results.push(block_aggregation_data.aggregation_output_data.clone());
 
     let mut oracle_price_commitment = Num::zero();
+    let mut prices_num = Num::zero();
     let mut last_oracle_vk_hash = Num::zero();
     let mut last_oracle_input_data = OracleAggregationOutputData::empty();
     let mut used_pyth_num = Num::zero();
@@ -181,19 +182,21 @@ pub fn final_aggregation<
         .enumerate()
     {
         let oracle_circuit_type = Num::alloc(cs, Some(IntoFr::<E>::into_fr(circuit_type as u8)))?;
-        let is_padding = Num::equals(cs, &single_oracle_data.final_price_commitment, &Num::zero())?;
+        let is_padding = Num::equals(cs, &single_oracle_data.prices_commitment.prices_commitment, &Num::zero())?;
         let temp_used_pyth_num =
             used_pyth_num.add(cs, &Num::Constant(IntoFr::<E>::into_fr(MAX_AGGREGATE_NUM)))?;
         used_pyth_num =
             Num::conditionally_select(cs, &is_padding, &used_pyth_num, &temp_used_pyth_num)?;
 
         if idx == 0 {
-            oracle_price_commitment = single_oracle_data.final_price_commitment;
+            oracle_price_commitment = single_oracle_data.prices_commitment.prices_commitment;
         } else {
             last_oracle_vk_hash.enforce_equal(cs, &single_oracle_data.oracle_vks_hash)?;
-            oracle_price_commitment = oracle_price_commitment
-                .square(cs)?
-                .add(cs, &single_oracle_data.final_price_commitment)?;
+            oracle_price_commitment = {
+                let offset = prices_num.mul(cs, &single_oracle_data.prices_commitment.prices_commitment)?;
+                oracle_price_commitment .add(cs, &offset)?
+            };
+            prices_num = prices_num.add(cs, &single_oracle_data.prices_commitment.prices_num)?;
             single_oracle_data
                 .guardian_set_hash
                 .enforce_equal(cs, &last_oracle_input_data.guardian_set_hash)?;

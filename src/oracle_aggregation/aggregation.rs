@@ -4,7 +4,7 @@ use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,
 };
-use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM};
+use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM, OraclePricesCommitment};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -115,6 +115,8 @@ pub fn aggregate_oracle_proofs<
     let mut final_price_commitment = Num::zero();
     let (mut earliest_publish_time, mut is_correct_earliest_publish_time) = (Num::zero(), vec![Boolean::constant(true)]);
     let mut last_oracle_input_data = OracleOutputData::empty();
+    let mut prices_num = Num::zero();
+    let mut prices_commitment_base_sum = Num::zero();
     for proof_idx in 0..num_proofs_to_aggregate {
         let used_circuit_type = Num::alloc(
             cs,
@@ -159,14 +161,29 @@ pub fn aggregate_oracle_proofs<
             let is_equal_or_greater = Boolean::or(cs, &is_equal, &is_greater)?;
             is_correct_earliest_publish_time.push(is_equal_or_greater);
         }
+        let offset = prices_num.mul(cs, &oracle_input_data.prices_commitment.prices_commitment_base_sum)?;
         let acc_price_commitment = final_price_commitment
-            .square(cs)?
-            .add(cs, &oracle_input_data.final_price_commitment)?;
+            .add(cs, &oracle_input_data.prices_commitment.prices_commitment)?
+            .add(cs, &offset)?;
         final_price_commitment = Num::conditionally_select(
             cs,
             &is_padding,
             &final_price_commitment,
             &acc_price_commitment,
+        )?;
+        let new_prices_num = prices_num.add(cs, &oracle_input_data.prices_commitment.prices_num)?;
+        prices_num = Num::conditionally_select(
+            cs,
+            &is_padding,
+            &prices_num,
+            &new_prices_num,
+        )?;
+        let new_prices_commitment_base_sum = oracle_input_data.prices_commitment.prices_commitment_base_sum;
+        prices_commitment_base_sum = Num::conditionally_select(
+            cs,
+            &is_padding,
+            &prices_commitment_base_sum,
+            &new_prices_commitment_base_sum,
         )?;
 
         used_key_commitments.push(vk_commitment_to_use);
@@ -202,7 +219,11 @@ pub fn aggregate_oracle_proofs<
     let public_input_data = OracleAggregationOutputData {
         oracle_vks_hash: enforce_commit_vks_commitments(cs, vk_commitments, commit_function)?,
         guardian_set_hash,
-        final_price_commitment,
+        prices_commitment: OraclePricesCommitment{
+            prices_commitment: final_price_commitment,
+            prices_num,
+            prices_commitment_base_sum,
+        },
         earliest_publish_time,
         aggregation_output_data: NodeAggregationOutputData {
             pair_with_x_x,
@@ -223,10 +244,8 @@ pub fn aggregate_oracle_proofs<
 mod tests {
     use crate::crypto_utils::PaddingCryptoComponent;
     use crate::oracle_aggregation::aggregation::aggregate_oracle_proofs;
+    use crate::tests::generate_test_constraint_system;
     use advanced_circuit_component::franklin_crypto::bellman::bn256::Fq;
-    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams, PolyIdentifier, TrivialAssembly};
-    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
-    use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
     use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
     use advanced_circuit_component::recursion::get_base_placeholder_point_for_accumulators;
     use advanced_circuit_component::recursion::recursion_tree::AggregationParameters;
@@ -235,36 +254,7 @@ mod tests {
     use advanced_circuit_component::testing::Bn256;
     use advanced_circuit_component::traits::GenericHasher;
     use advanced_circuit_component::utils::bn254_rescue_params;
-    use advanced_circuit_component::vm::tables::BitwiseLogicTable;
-    use advanced_circuit_component::vm::VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
 
-    type ActualConstraintSystem = TrivialAssembly<
-        Bn256,
-        PlonkCsWidth4WithNextStepAndCustomGatesParams,
-        SelectorOptimizedWidth4MainGateWithDNext,
-    >;
-
-    fn generate_test_constraint_system() -> ActualConstraintSystem {
-        let (mut cs, _, _) = advanced_circuit_component::testing::create_test_artifacts_with_optimized_gate();
-        let columns3 = vec![
-            PolyIdentifier::VariablesPolynomial(0),
-            PolyIdentifier::VariablesPolynomial(1),
-            PolyIdentifier::VariablesPolynomial(2),
-        ];
-
-        if cs.get_table(VM_BITWISE_LOGICAL_OPS_TABLE_NAME).is_err() {
-            let name = VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
-            let bitwise_logic_table = LookupTableApplication::new(
-                name,
-                BitwiseLogicTable::new(&name, 8),
-                columns3.clone(),
-                None,
-                true,
-            );
-            cs.add_table(bitwise_logic_table).unwrap();
-        };
-        cs
-    }
 
     #[test]
     fn test_oracle_aggregation() {
