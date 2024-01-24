@@ -26,8 +26,9 @@ use advanced_circuit_component::recursion::node_aggregation::{NodeAggregationOut
 use advanced_circuit_component::rescue_poseidon::{GenericSponge, HashParams, PoseidonParams, RescueParams};
 use advanced_circuit_component::recursion::transcript::{GenericTranscriptForRNSInFieldOnly, GenericTranscriptGadget};
 use serde::{Deserialize, Serialize};
+use crate::params::COMMON_CRYPTO_PARAMS;
 use super::circuit::{RecursiveAggregationCircuit, ZKLINK_NUM_INPUTS};
-use super::vks_tree::{create_vks_tree, POSEIDON_PARAMETERS, RESCUE_PARAMETERS, RNS_PARAMETERS};
+use super::vks_tree::create_vks_tree;
 
 pub type RecursiveAggregationCircuitBn256<'a> = RecursiveAggregationCircuit<
     'a,
@@ -44,12 +45,7 @@ pub type RescueTranscriptForRecursion<'a, E> =
 pub type RescueTranscriptGadgetForRecursion<E> =
     GenericTranscriptGadget<E, RescueParams<E, 2, 3>, 2, 3>;
 
-#[derive(
-    Derivative,
-    CSAllocatable,
-    CSWitnessable,
-    CSVariableLengthEncodable
-)]
+#[derive(Derivative, CSAllocatable, CSWitnessable, CSVariableLengthEncodable)]
 #[derivative(Clone, Debug)]
 pub struct BlockAggregationOutputData<E: Engine> {
     pub vk_root: Num<E>,
@@ -72,7 +68,7 @@ impl<E: Engine> BlockAggregationOutputDataWitness<E> {
             offset.mul_assign(&accumulated_prices_num);
             final_price_commitment.add_assign(&data.price_commitment);
             final_price_commitment.add_assign(&offset);
-            accumulated_prices_num.add_assign(&data.prices_num); 
+            accumulated_prices_num.add_assign(&data.prices_num);
         }
 
         use advanced_circuit_component::recursion::recursion_tree::NUM_LIMBS;
@@ -206,11 +202,11 @@ pub fn create_recursive_circuit_setup<'a>(
         vk_auth_paths: None,
         proof_ids: None,
         proofs: None,
-        rescue_params: &RESCUE_PARAMETERS,
-        poseidon_params: &POSEIDON_PARAMETERS,
-        rns_params: &RNS_PARAMETERS,
+        rescue_params: &COMMON_CRYPTO_PARAMS.rescue_params,
+        poseidon_params: &COMMON_CRYPTO_PARAMS.poseidon_params,
+        rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
         aux_data: BN256AuxData::new(),
-        transcript_params: &RESCUE_PARAMETERS,
+        transcript_params: &COMMON_CRYPTO_PARAMS.rescue_params,
 
         public_input_data: None,
         g2_elements: None,
@@ -252,7 +248,7 @@ pub struct RecursiveAggregationDataStorage<E: Engine> {
     pub indexes_of_used_proofs: Vec<u8>,
     pub num_inputs: usize,
     pub expected_recursive_input: E::Fr,
-    pub output: BlockAggregationOutputDataWitness<E>
+    pub output: BlockAggregationOutputDataWitness<E>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,11 +296,14 @@ pub fn create_zklink_recursive_aggregate(
         .iter()
         .zip(proofs.iter())
         .for_each(|(data, proof)| {
-            assert_eq!(data.hash(&*POSEIDON_PARAMETERS), proof.input_values[0]);
+            assert_eq!(
+                data.hash(&COMMON_CRYPTO_PARAMS.poseidon_params),
+                proof.input_values[0]
+            );
         });
 
-    let rns_params = &*RNS_PARAMETERS;
-    let rescue_params = &*RESCUE_PARAMETERS;
+    let rns_params = &COMMON_CRYPTO_PARAMS.rns_params;
+    let rescue_params = &COMMON_CRYPTO_PARAMS.rescue_params;
 
     assert!(tree_depth <= 8, "tree must not be deeper than 8");
     let (max_index, (vks_tree, _)) = create_vks_tree(all_known_vks, tree_depth)?;
@@ -327,8 +326,9 @@ pub fn create_zklink_recursive_aggregate(
         (&aggregate[0].prepare(), &g2_elements[0].prepare()),
         (&aggregate[1].prepare(), &g2_elements[1].prepare()),
     ]))
-        .ok_or(SynthesisError::Unsatisfiable)?
-        != <Bn256 as Engine>::Fqk::one() {
+    .ok_or(SynthesisError::Unsatisfiable)?
+        != <Bn256 as Engine>::Fqk::one()
+    {
         println!("Recursive aggreagete is invalid");
         return Err(SynthesisError::Unsatisfiable);
     }
@@ -339,7 +339,7 @@ pub fn create_zklink_recursive_aggregate(
         vks_tree_root,
         &aggregate,
         public_input_data,
-        rns_params
+        rns_params,
     );
 
     let new = RecursiveAggregationDataStorage::<Bn256> {
@@ -376,11 +376,14 @@ pub fn proof_recursive_aggregate_for_zklink<'a>(
         .iter()
         .zip(proofs.iter())
         .for_each(|(data, proof)| {
-            assert_eq!(data.hash(&*POSEIDON_PARAMETERS), proof.input_values[0]);
+            assert_eq!(
+                data.hash(&COMMON_CRYPTO_PARAMS.poseidon_params),
+                proof.input_values[0]
+            );
         });
 
-    let rns_params = &*RNS_PARAMETERS;
-    let rescue_params = &*RESCUE_PARAMETERS;
+    let rns_params = &COMMON_CRYPTO_PARAMS.rns_params;
+    let rescue_params = &COMMON_CRYPTO_PARAMS.rescue_params;
 
     let num_proofs_to_check = proofs.len();
 
@@ -451,7 +454,7 @@ pub fn proof_recursive_aggregate_for_zklink<'a>(
         proof_ids: Some(vk_indexes.to_vec()),
         proofs: Some(proofs_to_aggregate.to_vec()),
         rescue_params,
-        poseidon_params: &POSEIDON_PARAMETERS,
+        poseidon_params: &COMMON_CRYPTO_PARAMS.poseidon_params,
         rns_params,
         aux_data,
         transcript_params: rescue_params,

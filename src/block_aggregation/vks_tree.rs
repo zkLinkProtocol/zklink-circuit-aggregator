@@ -6,21 +6,13 @@ use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_c
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_cs::cs::PlonkConstraintSystemParams as OldCSParams;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_cs::cs::PlonkCsWidth4WithNextStepParams as OldActualParams;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_cs::keys::VerificationKey;
-use advanced_circuit_component::franklin_crypto::bellman::{CurveAffine, Engine, Field, ScalarEngine, SynthesisError};
+use advanced_circuit_component::franklin_crypto::bellman::{CurveAffine, Field, ScalarEngine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::field::RnsParameters;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::verifier_circuit::data_structs::IntoLimbedWitness;
 use advanced_circuit_component::franklin_crypto::rescue::RescueEngine;
-use advanced_circuit_component::recursion::get_prefered_rns_params;
-use once_cell::sync::Lazy;
-use advanced_circuit_component::rescue_poseidon::{GenericSponge, PoseidonParams};
-use advanced_circuit_component::utils::bn254_rescue_params;
-use super::witness::{DefaultPoseidonParams, DefaultRescueParams};
-
-pub static RNS_PARAMETERS: Lazy<RnsParameters<Bn256, <Bn256 as Engine>::Fq>> =
-    Lazy::new(get_prefered_rns_params);
-pub static RESCUE_PARAMETERS: Lazy<DefaultRescueParams<Bn256>> = Lazy::new(bn254_rescue_params);
-pub static POSEIDON_PARAMETERS: Lazy<DefaultPoseidonParams<Bn256>> =
-    Lazy::new(PoseidonParams::<Bn256, 2, 3>::default);
+use advanced_circuit_component::rescue_poseidon::GenericSponge;
+use crate::params::COMMON_CRYPTO_PARAMS;
+use super::witness::DefaultRescueParams;
 
 pub struct StaticRescueBinaryTreeHasher<E: RescueEngine> {
     params: DefaultRescueParams<E>,
@@ -115,7 +107,11 @@ pub fn create_vks_tree(
     let mut padded = vks.to_vec();
     padded.resize(max_size, vks.last().unwrap().clone());
 
-    let (tree, witness) = make_vks_tree(&padded, &RESCUE_PARAMETERS, &RNS_PARAMETERS);
+    let (tree, witness) = make_vks_tree(
+        &padded,
+        &COMMON_CRYPTO_PARAMS.rescue_params,
+        &COMMON_CRYPTO_PARAMS.rns_params
+    );
 
     Ok((max_valid_idx, (tree, witness)))
 }

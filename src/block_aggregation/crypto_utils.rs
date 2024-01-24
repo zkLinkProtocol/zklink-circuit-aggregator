@@ -1,6 +1,6 @@
+use crate::bellman::hex;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, PrimeField};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
-use crate::bellman::hex;
 
 fn debug_print_boolean_array_as_hex(input: &[Boolean]) {
     assert_eq!(input.len() % 8, 0);

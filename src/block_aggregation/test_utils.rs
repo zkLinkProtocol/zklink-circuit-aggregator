@@ -15,9 +15,10 @@ use advanced_circuit_component::franklin_crypto::bellman::plonk::{Proof, SetupPo
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_cs::verifier::verify_and_aggregate;
 use advanced_circuit_component::franklin_crypto::bellman::worker::Worker;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::fft::cooley_tukey_ntt::{BitReversedOmegas, CTPrecomputations, OmegasInvBitreversed};
+use crate::params::COMMON_CRYPTO_PARAMS;
 use super::{BlockPublicInputData, RecursiveAggregationCircuitBn256, RecursiveAggregationDataStorage, RescueTranscriptForRecursion, RescueTranscriptGadgetForRecursion};
 use super::circuit::RecursiveAggregationCircuit;
-use super::vks_tree::{make_vks_tree, POSEIDON_PARAMETERS, RESCUE_PARAMETERS, RNS_PARAMETERS};
+use super::vks_tree::make_vks_tree;
 
 pub struct TestCircuitWithOneInput<E: Engine> {
     inner_circuit: BenchmarkCircuitWithOneInput<E>,
@@ -42,7 +43,13 @@ impl<E: Engine> OldCircuit<E, OldActualParams> for TestCircuitWithOneInput<E> {
     ) -> Result<(), SynthesisError> {
         let params = PoseidonParams::<E, 2, 3>::default();
         // Set public input for test
-        cs.alloc_input(|| Ok(GenericSponge::hash(&[self.block_commitments, self.price_commitments], &params, None)[0]))?;
+        cs.alloc_input(|| {
+            Ok(GenericSponge::hash(
+                &[self.block_commitments, self.price_commitments],
+                &params,
+                None,
+            )[0])
+        })?;
         self.inner_circuit.synthesize(cs)
     }
 }
@@ -74,12 +81,18 @@ impl<E: Engine> OldCircuit<E, OldActualParams> for TestCircuit<E> {
     ) -> Result<(), SynthesisError> {
         let params = PoseidonParams::<E, 2, 3>::default();
         // Set public input for test
-        cs.alloc_input(|| Ok(GenericSponge::hash(&[
-            self.block_commitments,
-            self.price_commitments,
-            self.price_num,
-            self.price_base_sum,
-        ], &params, None)[0]))?;
+        cs.alloc_input(|| {
+            Ok(GenericSponge::hash(
+                &[
+                    self.block_commitments,
+                    self.price_commitments,
+                    self.price_num,
+                    self.price_base_sum,
+                ],
+                &params,
+                None,
+            )[0])
+        })?;
         self.inner_circuit.synthesize(cs)
     }
 }
@@ -121,7 +134,7 @@ pub fn make_vk_and_proof_for_crs<E: Engine, T: Transcript<E::Fr>>(
     (verification_key, proof)
 }
 
-pub fn test_public_input_data(agg_block_num: usize) -> Vec<BlockPublicInputData<Bn256>>{
+pub fn test_public_input_data(agg_block_num: usize) -> Vec<BlockPublicInputData<Bn256>> {
     let data = BlockPublicInputData {
         block_commitment: Fr::one(),
         price_commitment: Fr::zero(),
@@ -132,7 +145,10 @@ pub fn test_public_input_data(agg_block_num: usize) -> Vec<BlockPublicInputData<
     all_block_test_data
 }
 
-pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn256<'static>, RecursiveAggregationDataStorage<Bn256>) {
+pub fn create_test_block_aggregation_circuit() -> (
+    RecursiveAggregationCircuitBn256<'static>,
+    RecursiveAggregationDataStorage<Bn256>,
+) {
     let a = Fr::one();
     let b = Fr::one();
 
@@ -155,13 +171,15 @@ pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn
         _engine_marker: std::marker::PhantomData,
     });
 
-    let transcript_params = (&*RESCUE_PARAMETERS, &*RNS_PARAMETERS);
+    let transcript_params = (
+        &COMMON_CRYPTO_PARAMS.rescue_params,
+        &COMMON_CRYPTO_PARAMS.rns_params,
+    );
 
-    let (vk_0, proof_0) =
-        make_vk_and_proof::<Bn256, RescueTranscriptForRecursion<Bn256>>(
-            circuit_0,
-            transcript_params,
-        );
+    let (vk_0, proof_0) = make_vk_and_proof::<Bn256, RescueTranscriptForRecursion<Bn256>>(
+        circuit_0,
+        transcript_params,
+    );
     let (vk_1, _proof_1) = make_vk_and_proof::<Bn256, RescueTranscriptForRecursion<Bn256>>(
         circuit_1,
         transcript_params,
@@ -177,8 +195,11 @@ pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn
 
     let vks_in_tree = vec![vk_0.clone(), vk_1.clone()];
     // make in reverse
-    let (vks_tree, all_witness_values) =
-        make_vks_tree(&vks_in_tree, &*RESCUE_PARAMETERS, &*RNS_PARAMETERS);
+    let (vks_tree, all_witness_values) = make_vks_tree(
+        &vks_in_tree,
+        &COMMON_CRYPTO_PARAMS.rescue_params,
+        &COMMON_CRYPTO_PARAMS.rns_params,
+    );
 
     let vks_tree_root = vks_tree.get_commitment();
 
@@ -189,7 +210,7 @@ pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn
         let vk = &vks_in_tree[proof_id];
 
         let leaf_values = vk
-            .into_witness_for_params(&*RNS_PARAMETERS)
+            .into_witness_for_params(&COMMON_CRYPTO_PARAMS.rns_params)
             .expect("must transform into limbed witness");
 
         let values_per_leaf = leaf_values.len();
@@ -213,8 +234,9 @@ pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn
         &proofs,
         &block_input_data,
         &proof_ids,
-        &g2_bases
-    ).unwrap();
+        &g2_bases,
+    )
+    .unwrap();
 
     let circuit = RecursiveAggregationCircuit::<
         Bn256,
@@ -231,11 +253,11 @@ pub fn create_test_block_aggregation_circuit() -> (RecursiveAggregationCircuitBn
         vk_auth_paths: Some(queries),
         proof_ids: Some(proof_ids),
         proofs: Some(proofs),
-        rescue_params: &*RESCUE_PARAMETERS,
-        poseidon_params: &POSEIDON_PARAMETERS,
-        rns_params: &*RNS_PARAMETERS,
+        rescue_params: &COMMON_CRYPTO_PARAMS.rescue_params,
+        poseidon_params: &COMMON_CRYPTO_PARAMS.poseidon_params,
+        rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
         aux_data,
-        transcript_params: &*RESCUE_PARAMETERS,
+        transcript_params: &COMMON_CRYPTO_PARAMS.rescue_params,
 
         public_input_data: Some(block_input_data),
         g2_elements: Some(g2_bases),
@@ -313,7 +335,9 @@ pub fn make_vk_and_proof<E: Engine, T: Transcript<E::Fr>>(
     (verification_key, proof)
 }
 
-pub fn open_crs_for_log2_of_size<const ENABLE_TEST: bool>(n: usize) -> Crs<Bn256, CrsForMonomialForm> {
+pub fn open_crs_for_log2_of_size<const ENABLE_TEST: bool>(
+    n: usize,
+) -> Crs<Bn256, CrsForMonomialForm> {
     if ENABLE_TEST {
         let worker = Worker::new();
         Crs::<Bn256, CrsForMonomialForm>::crs_42(2usize.pow(n as u32), &worker)

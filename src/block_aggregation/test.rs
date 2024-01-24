@@ -8,10 +8,9 @@ use advanced_circuit_component::franklin_crypto::bellman::PrimeField;
 use advanced_circuit_component::franklin_crypto::bellman::worker::*;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::*;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::verifier_circuit::test::*;
+use crate::params::COMMON_CRYPTO_PARAMS;
 use super::{proof_recursive_aggregate_for_zklink, RecursiveAggregationCircuitBn256, RescueTranscriptForRecursion};
 use super::test_utils::*;
-
-use super::vks_tree::{RESCUE_PARAMETERS, RNS_PARAMETERS};
 use super::witness::create_recursive_circuit_vk_and_setup;
 
 #[test]
@@ -58,8 +57,8 @@ fn simulate_zklink_proofs() {
         circuits.push(circuit);
     }
 
-    let rns_params = RNS_PARAMETERS.clone();
-    let rescue_params = RESCUE_PARAMETERS.clone();
+    let rns_params = COMMON_CRYPTO_PARAMS.rns_params.clone();
+    let rescue_params = COMMON_CRYPTO_PARAMS.rescue_params.clone();
     let transcript_params = (&rescue_params, &rns_params);
 
     let crs = open_crs_for_log2_of_size::<true>(24);
@@ -181,8 +180,8 @@ fn simulate_zklink_proofs() {
 //     let proof =
 //         NewProof::<Bn256, RecursiveAggregationCircuitBn256>::read(reader).expect("must read");
 //
-//     let rns_params = RNS_PARAMETERS.clone();
-//     let rescue_params = RESCUE_PARAMETERS.clone();
+//     let rns_params = COMMON_CRYPTO_PARAMS.rns_params.clone();
+//     let rescue_params = COMMON_CRYPTO_PARAMS.rescue_params.clone();
 //     let transcript_params = (&rescue_params, &rns_params);
 //
 //     use franklin_crypto::bellman::plonk::better_better_cs::verifier::verify;
@@ -215,8 +214,8 @@ fn simulate_many_proofs() {
         circuits.push(circuit);
     }
 
-    let rns_params = RNS_PARAMETERS.clone();
-    let rescue_params = RESCUE_PARAMETERS.clone();
+    let rns_params = COMMON_CRYPTO_PARAMS.rns_params.clone();
+    let rescue_params = COMMON_CRYPTO_PARAMS.rescue_params.clone();
     let transcript_params = (&rescue_params, &rns_params);
 
     let crs = open_crs_for_log2_of_size::<true>(24);
@@ -304,8 +303,8 @@ fn test_all_aggregated_proofs() {
         }
     }
 
-    let rns_params = RNS_PARAMETERS.clone();
-    let rescue_params = RESCUE_PARAMETERS.clone();
+    let rns_params = COMMON_CRYPTO_PARAMS.rns_params.clone();
+    let rescue_params = COMMON_CRYPTO_PARAMS.rescue_params.clone();
     let transcript_params = (&rescue_params, &rns_params);
 
     let crs = open_crs_for_log2_of_size::<true>(20);
