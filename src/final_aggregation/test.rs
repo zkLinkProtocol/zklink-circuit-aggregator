@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use recursive_aggregation_circuit::bellman::plonk::better_better_cs::cs::Circuit as _;
+use crate::block_aggregation::bellman::plonk::better_better_cs::cs::Circuit as _;
 use zklink_oracle::ZkLinkOracle;
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
@@ -66,7 +66,7 @@ fn test_final_aggregation_circuit() {
         ).unwrap();
 
     println!("---------------------------block aggregation circuit start--------------------------------");
-    let (block_aggregation_circuit, aggregation_storage) = recursive_aggregation_circuit::test_utils::create_test_block_aggregation_circuit();
+    let (block_aggregation_circuit, aggregation_storage) = crate::block_aggregation::test_utils::create_test_block_aggregation_circuit();
     let block_output_data = aggregation_storage.output;
     let (proof, vk ) =
         circuit_testing::prove_and_verify_circuit_for_params::<

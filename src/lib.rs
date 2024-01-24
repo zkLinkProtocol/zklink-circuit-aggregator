@@ -4,6 +4,7 @@ use advanced_circuit_component::recursion::aggregation::MainGateParametrizedCirc
 mod crypto_utils;
 mod final_aggregation;
 mod oracle_aggregation;
+mod block_aggregation;
 mod key_manager;
 pub mod params;
 

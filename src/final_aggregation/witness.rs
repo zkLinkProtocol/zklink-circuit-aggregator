@@ -20,7 +20,7 @@ use advanced_circuit_component::testing::{Bn256, create_test_artifacts};
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use advanced_circuit_component::vm::structural_eq::*;
-use recursive_aggregation_circuit::witness::{BlockAggregationOutputData, BlockAggregationOutputDataWitness};
+use crate::block_aggregation::witness::{BlockAggregationOutputData, BlockAggregationOutputDataWitness};
 
 pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationOutputDataWitness<E>,
