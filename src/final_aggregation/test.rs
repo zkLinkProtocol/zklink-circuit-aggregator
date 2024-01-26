@@ -1,10 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
-use zklink_oracle::ZkLinkOracle;
+use zklink_oracle::pyth::PriceOracle;
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
+use zklink_oracle::witness::{OracleOutputDataWitness, OraclePricesCommitmentWitness};
 use crate::tests::generate_test_constraint_system;
-use crate::{FinalAggregationCircuit, OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey, OraclePricesCommitmentWitness};
+use crate::{FinalAggregationCircuit, OracleAggregationCircuit, UniformProof, UniformVerificationKey};
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Fr;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::Circuit;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
@@ -14,7 +15,7 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     use crate::OracleCircuitType::*;
 
     println!("---------------------------oracle circuit start--------------------------------");
-    let test_circuit = ZkLinkOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
+    let test_circuit = PriceOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
     let oracle_inputs_data = {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {

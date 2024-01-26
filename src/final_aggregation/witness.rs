@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use crate::oracle_aggregation::OracleAggregationOutputDataWitness;
 use crate::params::{CommonCryptoParams, COMMON_CRYPTO_PARAMS};
 use crate::{final_aggregation, OracleAggregationOutputData, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo};
+use advanced_circuit_component::vm::primitives::uint256::UInt256;
 use cs_derive::*;
 use derivative::Derivative;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
@@ -232,7 +233,7 @@ pub struct VksCompositionData<E: Engine> {
 pub struct OracleOnChainData<E: Engine> {
     pub used_pyth_num: Num<E>,
     pub guardian_set_index: Num<E>,
-    pub guardian_set_hash: Num<E>,
+    pub guardian_set_hash: UInt256<E>,
     pub earliest_publish_time: Num<E>,
 }
 

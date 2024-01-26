@@ -19,6 +19,7 @@ use advanced_circuit_component::vm::structural_eq::*;
 use cs_derive::*;
 use derivative::Derivative;
 use std::collections::BTreeMap;
+use zklink_oracle::witness::{OracleOutputData, OracleOutputDataWitness, OraclePricesCommitment};
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
 pub const ALL_AGGREGATION_TYPES: [OracleCircuitType; ORACLE_CIRCUIT_TYPES_NUM] = [
@@ -164,62 +165,6 @@ impl<E: Engine> CircuitEmpty<E> for OracleAggregationOutputData<E> {
             prices_commitment: CircuitEmpty::empty(),
             earliest_publish_time: Num::zero(),
             aggregation_output_data: CircuitEmpty::empty(),
-        }
-    }
-}
-
-#[derive(
-    Derivative,
-    CSAllocatable,
-    CSWitnessable,
-    CSPackable,
-    CSSelectable,
-    CSEqual,
-    CSEncodable,
-    CSDecodable,
-    CSVariableLengthEncodable,
-)]
-#[derivative(Clone, Debug)]
-pub struct OracleOutputData<E: Engine> {
-    pub guardian_set_hash: Num<E>,
-    pub earliest_publish_time: Num<E>,
-    pub prices_commitment: OraclePricesCommitment<E>,
-}
-
-impl<E: Engine> CircuitEmpty<E> for OracleOutputData<E> {
-    fn empty() -> Self {
-        Self {
-            guardian_set_hash: Num::zero(),
-            earliest_publish_time: Num::zero(),
-            prices_commitment: CircuitEmpty::empty(),
-        }
-    }
-}
-
-#[derive(
-    Derivative,
-    CSAllocatable,
-    CSWitnessable,
-    CSPackable,
-    CSSelectable,
-    CSEqual,
-    CSEncodable,
-    CSDecodable,
-    CSVariableLengthEncodable,
-)]
-#[derivative(Clone, Debug)]
-pub struct OraclePricesCommitment<E: Engine> {
-    pub prices_commitment: Num<E>,
-    pub prices_num: Num<E>,
-    pub prices_commitment_base_sum: Num<E>, // public input
-}
-
-impl<E: Engine> CircuitEmpty<E> for OraclePricesCommitment<E> {
-    fn empty() -> Self {
-        Self {
-            prices_commitment: Num::zero(),
-            prices_num: Num::zero(),
-            prices_commitment_base_sum: Num::zero(),
         }
     }
 }

@@ -1,4 +1,6 @@
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
+use advanced_circuit_component::glue::binary_hashes::sha256;
+use advanced_circuit_component::vm::primitives::uint256::UInt256;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
     FinalAggregationCircuit, FinalAggregationOutputData,
@@ -198,6 +200,7 @@ pub fn final_aggregation<
     let mut last_oracle_vk_hash = Num::zero();
     let mut last_oracle_input_data = OracleAggregationOutputData::empty();
     let mut used_pyth_num = Num::zero();
+    let mut guardian_set_hash = None;
     for (idx, (single_oracle_data, (circuit_type, proof))) in oracle_aggregation_data
         .into_iter()
         .zip(oracle_aggregation_proof)
@@ -227,6 +230,9 @@ pub fn final_aggregation<
             single_oracle_data
                 .guardian_set_hash
                 .enforce_equal(cs, &last_oracle_input_data.guardian_set_hash)?;
+            if guardian_set_hash.is_none() {
+                guardian_set_hash = Some(single_oracle_data.guardian_set_hash);
+            }
             let (is_equal, is_greater) = prepacked_long_comparison(
                 cs,
                 &[single_oracle_data.earliest_publish_time],
@@ -252,6 +258,20 @@ pub fn final_aggregation<
 
         last_oracle_vk_hash = single_oracle_data.oracle_vks_hash;
         last_oracle_input_data = single_oracle_data;
+    }
+
+    let guardian_set = zklink_oracle::pyth::GUARDIAN_SET
+        .iter()
+        .map(|w| zklink_oracle::gadgets::ethereum::Address::from_address_witness(cs, w))
+        .collect::<Result<Vec<_>, _>>()?;
+    if let Some(guardian_set_hash) = guardian_set_hash {
+        use zklink_oracle::gadgets::poseidon::circuit_poseidon_hash;
+        let guardian_set_num = guardian_set
+            .iter()
+            .map(|g| g.inner().to_num_unchecked(cs))
+            .collect::<Result<Vec<_>, _>>()?;
+        let expected_guardian_set_hash = circuit_poseidon_hash(cs, &guardian_set_num)?;
+        expected_guardian_set_hash.enforce_equal(cs, &guardian_set_hash)?;
     }
 
     let num_proofs_aggregated = num_proofs_aggregated_oracle + 1;
@@ -303,6 +323,17 @@ pub fn final_aggregation<
         true,
         RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME,
     )?;
+    let guardian_set_bytes = guardian_set
+        .iter()
+        .map(|g| g.to_bytes(cs))
+        .collect::<Result<Vec<_>, _>>()?;
+    let guardian_set_bytes = guardian_set_bytes.into_iter().flatten().collect::<Vec<_>>();
+
+    let guardian_set_hash_by_has256 = {
+        let num = sha256(cs, &guardian_set_bytes)?;
+        UInt256::from_be_bytes_fixed(cs, &num)?
+    };
+
     let public_input_data = FinalAggregationOutputData::<E> {
         total_agg_num: Num::alloc(
             cs,
@@ -313,7 +344,7 @@ pub fn final_aggregation<
         oracle_data: OracleOnChainData {
             used_pyth_num,
             guardian_set_index: Num::alloc(cs, Some(IntoFr::<E>::into_fr(GUARDIAN_SET_INDEX)))?,
-            guardian_set_hash: first_oracle_agg_data.guardian_set_hash,
+            guardian_set_hash: guardian_set_hash_by_has256,
             earliest_publish_time: first_oracle_agg_data.earliest_publish_time,
         },
         aggregation_output_data: NodeAggregationOutputData {

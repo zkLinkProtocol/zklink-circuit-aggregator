@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 use crate::params::COMMON_CRYPTO_PARAMS;
 use crate::{
-    OracleAggregationCircuit, OracleOutputData, PaddingCryptoComponent, UniformProof,
-    UniformVerificationKey, ORACLE_CIRCUIT_TYPES_NUM,
+    OracleAggregationCircuit, PaddingCryptoComponent, UniformProof, UniformVerificationKey,
+    ORACLE_CIRCUIT_TYPES_NUM,
 };
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
@@ -18,6 +18,7 @@ use advanced_circuit_component::traits::CSWitnessable;
 use circuit_testing::create_vk;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
+use zklink_oracle::witness::OracleOutputData;
 
 #[derive(Debug, Clone)]
 pub struct VerificationKeyManager<C: CircuitGenerator<E>, E: Engine> {
