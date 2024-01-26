@@ -1,11 +1,9 @@
 use crate::params::{RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
-use crate::{
-    OracleAggregationCircuit, OracleOutputDataWitness, OraclePricesCommitmentWitness, UniformProof,
-    UniformVerificationKey,
-};
+use crate::{OracleAggregationCircuit, UniformProof, UniformVerificationKey};
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
 use std::collections::BTreeMap;
+use zklink_oracle::witness::{OracleOutputDataWitness, OraclePricesCommitmentWitness};
 
 #[test]
 fn test_oracle_aggregation_circuit() {
