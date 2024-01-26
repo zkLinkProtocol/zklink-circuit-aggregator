@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
 use crate::{OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey, OraclePricesCommitmentWitness};
-use crate::bellman::bn256::Bn256;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use crate::params::{COMMON_CRYPTO_PARAMS, RescueTranscriptForRecursion};
 
 #[test]

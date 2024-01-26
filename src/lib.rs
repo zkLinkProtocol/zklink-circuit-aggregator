@@ -9,8 +9,6 @@ mod key_manager;
 pub mod params;
 
 pub use advanced_circuit_component::franklin_crypto;
-pub use advanced_circuit_component::franklin_crypto::bellman; // for cs_derive proc macro
-pub use advanced_circuit_component::utils; // for cs_derive proc macro
 pub use advanced_circuit_component as advanced_components;
 
 pub use crypto_utils::*;
@@ -18,8 +16,8 @@ pub use final_aggregation::*;
 pub use oracle_aggregation::*;
 
 pub type UniformCircuit<E> = MainCircuit<E, MainGate>;
-pub type UniformProof<E> = bellman::plonk::better_better_cs::proof::Proof<E, UniformCircuit<E>>;
-pub type UniformVerificationKey<E> = bellman::plonk::better_better_cs::setup::VerificationKey<E, UniformCircuit<E>>;
+pub type UniformProof<E> = franklin_crypto::bellman::plonk::better_better_cs::proof::Proof<E, UniformCircuit<E>>;
+pub type UniformVerificationKey<E> = franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey<E, UniformCircuit<E>>;
 
 #[cfg(test)]
 mod tests {

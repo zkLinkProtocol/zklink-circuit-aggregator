@@ -1,5 +1,5 @@
-use crate::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
-use crate::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,

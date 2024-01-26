@@ -8,10 +8,10 @@ use advanced_circuit_component::glue::optimizable_queue::variable_length_hash;
 use advanced_circuit_component::recursion::node_aggregation::VK_ENCODING_LENGTH;
 use advanced_circuit_component::traits::CSWitnessable;
 use circuit_testing::create_vk;
-use crate::bellman::bn256::Bn256;
-use crate::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams};
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, ConstraintSystem, PlonkCsWidth4WithNextStepAndCustomGatesParams};
 use crate::{ORACLE_CIRCUIT_TYPES_NUM, OracleAggregationCircuit, OracleOutputData, PaddingCryptoComponent, UniformProof, UniformVerificationKey};
-use crate::bellman::SynthesisError;
+use advanced_circuit_component::franklin_crypto::bellman::SynthesisError;
 use crate::params::COMMON_CRYPTO_PARAMS;
 
 #[derive(Debug, Clone)]

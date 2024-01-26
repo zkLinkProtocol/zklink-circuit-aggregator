@@ -1,4 +1,4 @@
-use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
     FinalAggregationCircuit, FinalAggregationOutputData,
@@ -31,10 +31,10 @@ use advanced_circuit_component::utils::compute_shifts;
 use advanced_circuit_component::vm::partitioner::smart_or;
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 use advanced_circuit_component::vm::tables::BitwiseLogicTable;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
 use crate::block_aggregation::BlockAggregationOutputData;
-use crate::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
-use crate::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
-use crate::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
 use crate::key_manager::enforce_commit_vks_commitments;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;

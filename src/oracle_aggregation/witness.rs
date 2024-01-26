@@ -1,4 +1,4 @@
-use crate::bellman::bn256::Bn256;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use crate::params::{CommonCryptoParams, RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
 use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo};
 use cs_derive::*;

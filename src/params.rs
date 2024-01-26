@@ -1,5 +1,5 @@
-use crate::bellman::bn256::Bn256;
-use crate::bellman::Engine;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
+use advanced_circuit_component::franklin_crypto::bellman::Engine;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
 use once_cell::sync::Lazy;
 use advanced_circuit_component::recursion::{get_base_placeholder_point_for_accumulators, get_prefered_rns_params};

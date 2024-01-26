@@ -1,4 +1,4 @@
-use crate::bellman::hex;
+use advanced_circuit_component::franklin_crypto::bellman::hex;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, PrimeField};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
 

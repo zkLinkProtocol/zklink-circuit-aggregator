@@ -13,6 +13,7 @@ categories = ["cryptography"]
 [dependencies]
 advanced_circuit_component = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main", features = ["external_testing"]}
 cs_derive = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
+cs_derive_traits = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 circuit_testing = { git = "https://github.com/zkLinkProtocol/circuit_testing.git", branch = "main" }
 serde = { version = "1.0.193", features = ["derive"] }
 derivative = { version = "2.2.0" }

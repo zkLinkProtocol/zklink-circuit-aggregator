@@ -865,6 +865,7 @@ dependencies = [
  "advanced_circuit_component",
  "circuit_testing",
  "cs_derive",
+ "cs_derive_traits",
  "derivative",
  "num-traits",
  "once_cell",

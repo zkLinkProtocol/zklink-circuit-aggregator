@@ -5,9 +5,9 @@ use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::PlonkCsWidth4WithNextStepAndCustomGatesParams;
 use crate::tests::generate_test_constraint_system;
 use crate::{FinalAggregationCircuit, OracleAggregationCircuit, OracleOutputDataWitness, UniformProof, UniformVerificationKey, OraclePricesCommitmentWitness};
-use crate::bellman::bn256::Fr;
-use crate::bellman::plonk::better_better_cs::cs::Circuit;
-use crate::bellman::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Fr;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::Circuit;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::commitments::transcript::keccak_transcript::RollingKeccakTranscript;
 use crate::params::{COMMON_CRYPTO_PARAMS, RescueTranscriptForRecursion};
 
 fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, Bn256> {
