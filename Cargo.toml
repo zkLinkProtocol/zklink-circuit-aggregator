@@ -13,12 +13,12 @@ categories = ["cryptography"]
 [dependencies]
 advanced_circuit_component = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main", features = ["external_testing"]}
 cs_derive = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
+cs_derive_traits = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 circuit_testing = { git = "https://github.com/zkLinkProtocol/circuit_testing.git", branch = "main" }
 serde = { version = "1.0.193", features = ["derive"] }
 derivative = { version = "2.2.0" }
 num-traits = "0.2"
 once_cell = "1.18.0"
-recursive_aggregation_circuit = { package = "recursive_aggregation_circuit", version = "0.1.0", git = "https://github.com/zkLinkProtocol/link_aggregation_circuit.git", branch = "master" }
 
 [dev-dependencies]
 zklink-oracle = { git = "ssh://git@github.com/zkLinkProtocol/zklink-oracle", branch = "main" }

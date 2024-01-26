@@ -20,7 +20,7 @@ use advanced_circuit_component::testing::{Bn256, create_test_artifacts};
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::traits::{CircuitFixedLengthEncodable, CircuitVariableLengthEncodable};
 use advanced_circuit_component::vm::structural_eq::*;
-use recursive_aggregation_circuit::witness::{BlockAggregationOutputData, BlockAggregationOutputDataWitness};
+use crate::block_aggregation::witness::{BlockAggregationOutputData, BlockAggregationOutputDataWitness};
 
 pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_aggregation_result: BlockAggregationOutputDataWitness<E>,
@@ -37,7 +37,11 @@ pub struct FinalAggregationCircuit<'a, E: Engine> {
 }
 
 impl FinalAggregationCircuit<'_, Bn256> {
-    pub fn circuit_default(oracle_agg_num: usize, total_block_vk_type_num: usize, total_oracle_vk_type_num: usize) -> Self {
+    pub fn circuit_default(
+        oracle_agg_num: usize,
+        total_block_vk_type_num: usize,
+        total_oracle_vk_type_num: usize,
+    ) -> Self {
         Self {
             block_aggregation_result:
                 <BlockAggregationOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
@@ -51,8 +55,12 @@ impl FinalAggregationCircuit<'_, Bn256> {
             block_proof: (0, UniformProof::empty()),
             oracle_proof: vec![(0, UniformProof::empty()); oracle_agg_num],
 
-            oracle_vks_set: (0..total_oracle_vk_type_num).map(|n| (n, Default::default())).collect(),
-            block_vks_set: (0..total_block_vk_type_num).map(|n| (n, Default::default())).collect(),
+            oracle_vks_set: (0..total_oracle_vk_type_num)
+                .map(|n| (n, Default::default()))
+                .collect(),
+            block_vks_set: (0..total_block_vk_type_num)
+                .map(|n| (n, Default::default()))
+                .collect(),
 
             output: None,
             params: &COMMON_CRYPTO_PARAMS,
@@ -67,10 +75,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
         oracle_proof: Vec<(usize, UniformProof<Bn256>)>,
         oracle_agg_vks: BTreeMap<usize, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
     ) -> Self {
-        assert_eq!(
-            oracle_aggregation_results.len(),
-            oracle_proof.len()
-        );
+        assert_eq!(oracle_aggregation_results.len(), oracle_proof.len());
 
         let oracle_vks_commitments_set = oracle_agg_vks
             .into_iter()
@@ -104,8 +109,9 @@ impl FinalAggregationCircuit<'_, Bn256> {
             None,
         );
         let (mut cs, ..) = create_test_artifacts();
-        let (_public_input, public_input_data) = final_aggregation(&mut cs, &witness, &commit_hash, params)
-            .expect("Failed to final aggregate");
+        let (_public_input, public_input_data) =
+            final_aggregation(&mut cs, &witness, &commit_hash, params)
+                .expect("Failed to final aggregate");
         witness.output = public_input_data.create_witness();
 
         witness
@@ -113,12 +119,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
 }
 
 // On-chain information
-#[derive(
-    Derivative,
-    CSAllocatable,
-    CSWitnessable,
-    CSVariableLengthEncodable
-)]
+#[derive(Derivative, CSAllocatable, CSWitnessable, CSVariableLengthEncodable)]
 #[derivative(Clone, Debug)]
 pub struct FinalAggregationOutputData<E: Engine> {
     pub total_agg_num: Num<E>,
@@ -168,7 +169,7 @@ impl<E: Engine> FinalAggregationOutputData<E> {
         let mut encodes = Vec::with_capacity(len * 32);
         encodes.extend(self.vks_commitment.into_be_bytes(cs)?);
 
-        for block_commitment  in &self.blocks_commitments {
+        for block_commitment in &self.blocks_commitments {
             encodes.extend(block_commitment.into_be_bytes(cs)?);
         }
 
@@ -186,9 +187,11 @@ impl<E: Engine> FinalAggregationOutputData<E> {
             self.aggregation_output_data.pair_with_generator_y,
             self.aggregation_output_data.pair_with_x_x,
             self.aggregation_output_data.pair_with_x_y,
-        ].iter().flatten() {
+        ]
+        .iter()
+        .flatten()
+        {
             encodes.extend(coord_limb.into_be_bytes(cs)?);
-
         }
         assert_eq!(encodes.len(), encodes.capacity());
         Ok(encodes)

@@ -1,5 +1,5 @@
-use crate::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
-use crate::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,
@@ -93,7 +93,10 @@ pub fn aggregate_oracle_proofs<
         },
         g2_elements,
     ) = params;
-    inscribe_default_range_table_for_bit_width_over_first_three_columns(cs, RANGE_CHECK_TABLE_BIT_WIDTH)?;
+    inscribe_default_range_table_for_bit_width_over_first_three_columns(
+        cs,
+        RANGE_CHECK_TABLE_BIT_WIDTH,
+    )?;
 
     // prepare all witness
     let oracle_inputs_data = project_ref!(witness, oracle_inputs_data).cloned();
@@ -107,7 +110,9 @@ pub fn aggregate_oracle_proofs<
         let circuit_type_num = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk_commitment = Num::alloc(
             cs,
-            vks_set.as_ref().map(|info| info.get(&circuit_type).unwrap().vk_commitment),
+            vks_set
+                .as_ref()
+                .map(|info| info.get(&circuit_type).unwrap().vk_commitment),
         )?;
         vk_commitments.push((circuit_type_num, vk_commitment));
     }
@@ -115,16 +120,20 @@ pub fn aggregate_oracle_proofs<
     // check all recursive inputs(oracle circuit output data)
     let mut used_key_commitments = Vec::with_capacity(num_proofs_to_aggregate);
     let mut inputs = Vec::with_capacity(num_proofs_to_aggregate);
-    let (mut guardian_set_hash, mut is_correct_guardian_set_hash) = (Num::zero(), vec![Boolean::constant(true)]);
+    let (mut guardian_set_hash, mut is_correct_guardian_set_hash) =
+        (Num::zero(), vec![Boolean::constant(true)]);
     let mut final_price_commitment = Num::zero();
-    let (mut earliest_publish_time, mut is_correct_earliest_publish_time) = (Num::zero(), vec![Boolean::constant(true)]);
+    let (mut earliest_publish_time, mut is_correct_earliest_publish_time) =
+        (Num::zero(), vec![Boolean::constant(true)]);
     let mut last_oracle_input_data = OracleOutputData::empty();
     let mut prices_num = Num::zero();
     let mut prices_commitment_base_sum = Num::zero();
     for proof_idx in 0..num_proofs_to_aggregate {
         let used_circuit_type = Num::alloc(
             cs,
-            aggregation_proofs.as_ref().map(|a| IntoFr::<E>::into_fr(a[proof_idx].0 as u8)),
+            aggregation_proofs
+                .as_ref()
+                .map(|a| IntoFr::<E>::into_fr(a[proof_idx].0 as u8)),
         )?;
         let is_padding = {
             let padding_type = Num::Constant(IntoFr::<E>::into_fr(
@@ -135,10 +144,13 @@ pub fn aggregate_oracle_proofs<
 
         let oracle_input_data = OracleOutputData::alloc_from_witness(
             cs,
-            oracle_inputs_data.as_ref().map(|data| data[proof_idx].clone())
+            oracle_inputs_data
+                .as_ref()
+                .map(|data| data[proof_idx].clone()),
         )?;
         let input_commitment = commit_encodable_item(cs, &oracle_input_data, commit_function)?;
-        let vk_commitment_to_use = check_and_select_vk_commitment(cs, &vk_commitments, used_circuit_type)?;
+        let vk_commitment_to_use =
+            check_and_select_vk_commitment(cs, &vk_commitments, used_circuit_type)?;
 
         guardian_set_hash = oracle_input_data.guardian_set_hash;
         if proof_idx == 0 {
@@ -158,7 +170,12 @@ pub fn aggregate_oracle_proofs<
             let is_equal_or_greater = Boolean::or(cs, &is_equal, &is_greater)?;
             is_correct_earliest_publish_time.push(is_equal_or_greater);
         }
-        let offset = prices_num.mul(cs, &oracle_input_data.prices_commitment.prices_commitment_base_sum)?;
+        let offset = prices_num.mul(
+            cs,
+            &oracle_input_data
+                .prices_commitment
+                .prices_commitment_base_sum,
+        )?;
         let acc_price_commitment = final_price_commitment
             .add(cs, &oracle_input_data.prices_commitment.prices_commitment)?
             .add(cs, &offset)?;
@@ -169,13 +186,10 @@ pub fn aggregate_oracle_proofs<
             &acc_price_commitment,
         )?;
         let new_prices_num = prices_num.add(cs, &oracle_input_data.prices_commitment.prices_num)?;
-        prices_num = Num::conditionally_select(
-            cs,
-            &is_padding,
-            &prices_num,
-            &new_prices_num,
-        )?;
-        let new_prices_commitment_base_sum = oracle_input_data.prices_commitment.prices_commitment_base_sum;
+        prices_num = Num::conditionally_select(cs, &is_padding, &prices_num, &new_prices_num)?;
+        let new_prices_commitment_base_sum = oracle_input_data
+            .prices_commitment
+            .prices_commitment_base_sum;
         prices_commitment_base_sum = Num::conditionally_select(
             cs,
             &is_padding,
@@ -216,7 +230,7 @@ pub fn aggregate_oracle_proofs<
     let public_input_data = OracleAggregationOutputData {
         oracle_vks_hash: enforce_commit_vks_commitments(cs, vk_commitments, commit_function)?,
         guardian_set_hash,
-        prices_commitment: OraclePricesCommitment{
+        prices_commitment: OraclePricesCommitment {
             prices_commitment: final_price_commitment,
             prices_num,
             prices_commitment_base_sum,
@@ -251,7 +265,6 @@ mod tests {
     use advanced_circuit_component::testing::Bn256;
     use advanced_circuit_component::traits::GenericHasher;
     use advanced_circuit_component::utils::bn254_rescue_params;
-
 
     #[test]
     fn test_oracle_aggregation() {

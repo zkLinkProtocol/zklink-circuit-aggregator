@@ -1,13 +1,17 @@
-use crate::bellman::bn256::Bn256;
-use crate::bellman::Engine;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
+use advanced_circuit_component::franklin_crypto::bellman::Engine;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
-use once_cell::sync::Lazy;
-use advanced_circuit_component::recursion::{get_base_placeholder_point_for_accumulators, get_prefered_rns_params};
 use advanced_circuit_component::recursion::recursion_tree::AggregationParameters;
-use advanced_circuit_component::recursion::transcript::{GenericTranscriptForRNSInFieldOnly, GenericTranscriptGadget};
+use advanced_circuit_component::recursion::transcript::{
+    GenericTranscriptForRNSInFieldOnly, GenericTranscriptGadget,
+};
+use advanced_circuit_component::recursion::{
+    get_base_placeholder_point_for_accumulators, get_prefered_rns_params,
+};
 use advanced_circuit_component::rescue_poseidon::{PoseidonParams, RescueParams};
 use advanced_circuit_component::traits::GenericHasher;
 use advanced_circuit_component::utils::bn254_rescue_params;
+use once_cell::sync::Lazy;
 
 pub const RATE: usize = 2;
 pub const WIDTH: usize = 3;

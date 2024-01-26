@@ -1,8 +1,8 @@
-use crate::bellman::bn256::Bn256;
 use crate::params::{CommonCryptoParams, RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
-use crate::{aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo};
-use cs_derive::*;
-use derivative::Derivative;
+use crate::{
+    aggregate_oracle_proofs, PaddingCryptoComponent, UniformCircuit, UniformProof, VkEncodeInfo,
+};
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
@@ -10,11 +10,15 @@ use advanced_circuit_component::franklin_crypto::bellman::Engine;
 use advanced_circuit_component::franklin_crypto::bellman::SynthesisError;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::Num;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
-use std::collections::BTreeMap;
-use advanced_circuit_component::recursion::node_aggregation::{NodeAggregationOutputData, VK_ENCODING_LENGTH};
+use advanced_circuit_component::recursion::node_aggregation::{
+    NodeAggregationOutputData, VK_ENCODING_LENGTH,
+};
 use advanced_circuit_component::testing::create_test_artifacts;
 use advanced_circuit_component::traits::*;
 use advanced_circuit_component::vm::structural_eq::*;
+use cs_derive::*;
+use derivative::Derivative;
+use std::collections::BTreeMap;
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
 pub const ALL_AGGREGATION_TYPES: [OracleCircuitType; ORACLE_CIRCUIT_TYPES_NUM] = [
@@ -47,8 +51,13 @@ impl OracleAggregationCircuit<'_, Bn256> {
                 agg_num
             ],
             proof_witnesses: vec![(0.into(), UniformProof::empty()); agg_num],
-            vks_set: (0..total_oracle_type_num).map(|n| (n.into(), Default::default())).collect(),
-            vk_encoding_witnesses: vec![[Default::default(); VK_ENCODING_LENGTH]; total_oracle_type_num],
+            vks_set: (0..total_oracle_type_num)
+                .map(|n| (n.into(), Default::default()))
+                .collect(),
+            vk_encoding_witnesses: vec![
+                [Default::default(); VK_ENCODING_LENGTH];
+                total_oracle_type_num
+            ],
             params: &COMMON_CRYPTO_PARAMS,
             output: None,
             padding_component: PaddingCryptoComponent::default(),
@@ -59,7 +68,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
         oracle_inputs_data: Vec<OracleOutputDataWitness<Bn256>>,
         proof_witnesses: Vec<(OracleCircuitType, UniformProof<Bn256>)>,
         vks: BTreeMap<OracleCircuitType, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
-        padding_proof: UniformProof<Bn256>
+        padding_proof: UniformProof<Bn256>,
     ) -> Self {
         let num_proofs_to_aggregate = oracle_inputs_data.len();
         assert_eq!(num_proofs_to_aggregate, proof_witnesses.len());
@@ -76,7 +85,10 @@ impl OracleAggregationCircuit<'_, Bn256> {
             );
         }
 
-        let padding_vk = vks.get(&OracleCircuitType::AggregationNull).cloned().unwrap();
+        let padding_vk = vks
+            .get(&OracleCircuitType::AggregationNull)
+            .cloned()
+            .unwrap();
         let vks_set = vks
             .into_iter()
             .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
@@ -106,7 +118,13 @@ impl OracleAggregationCircuit<'_, Bn256> {
             transcript_params,
             &rns_params,
         );
-        let params = (num_proofs_to_aggregate, rns_params, agg_params, padding.clone(), None);
+        let params = (
+            num_proofs_to_aggregate,
+            rns_params,
+            agg_params,
+            padding.clone(),
+            None,
+        );
         let (mut cs, ..) = create_test_artifacts();
         let (_public_input, public_input_data) =
             aggregate_oracle_proofs(&mut cs, Some(&witness), &commit_hash, params)

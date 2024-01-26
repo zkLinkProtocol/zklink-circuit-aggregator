@@ -1,15 +1,15 @@
-use crate::params::{COMMON_CRYPTO_PARAMS, DefaultRescueParams, RescueTranscriptForRecursion};
+use crate::params::{DefaultRescueParams, RescueTranscriptForRecursion, COMMON_CRYPTO_PARAMS};
 use crate::{UniformCircuit, UniformProof, UniformVerificationKey};
-use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
+use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
+use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::setup::VerificationKey;
 use advanced_circuit_component::franklin_crypto::bellman::Engine;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint::RnsParameters;
-use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::glue::optimizable_queue::simulate_variable_length_hash;
 use advanced_circuit_component::recursion::aggregation::VkInRns;
 use advanced_circuit_component::recursion::node_aggregation::VK_ENCODING_LENGTH;
 use advanced_circuit_component::traits::ArithmeticEncodable;
-use crate::bellman::bn256::Bn256;
 
 #[derive(Debug, Clone)]
 pub struct PaddingCryptoComponent<E: Engine> {
@@ -85,14 +85,14 @@ pub struct VkEncodeInfo<E: Engine> {
 impl VkEncodeInfo<Bn256> {
     pub fn new(vk: UniformVerificationKey<Bn256>) -> Self {
         let commit_function = COMMON_CRYPTO_PARAMS.poseidon_hash();
-        let vk_encoding_witness:[_; VK_ENCODING_LENGTH] = VkInRns {
+        let vk_encoding_witness: [_; VK_ENCODING_LENGTH] = VkInRns {
             vk: Some(vk),
             rns_params: &COMMON_CRYPTO_PARAMS.rns_params,
         }
-            .encode()
-            .unwrap()
-            .try_into()
-            .unwrap();
+        .encode()
+        .unwrap()
+        .try_into()
+        .unwrap();
         let vk_commitment = simulate_variable_length_hash(&vk_encoding_witness, &commit_function);
         Self {
             vk_encoding_witness,

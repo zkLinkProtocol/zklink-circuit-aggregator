@@ -1,4 +1,4 @@
-use crate::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
     FinalAggregationCircuit, FinalAggregationOutputData,
@@ -31,10 +31,10 @@ use advanced_circuit_component::utils::compute_shifts;
 use advanced_circuit_component::vm::partitioner::smart_or;
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 use advanced_circuit_component::vm::tables::BitwiseLogicTable;
-use recursive_aggregation_circuit::BlockAggregationOutputData;
-use crate::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
-use crate::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
-use crate::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
+use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
+use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
+use crate::block_aggregation::BlockAggregationOutputData;
 use crate::key_manager::enforce_commit_vks_commitments;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
@@ -123,7 +123,10 @@ pub fn final_aggregation<
         );
         cs.add_table(bitwise_logic_table)?;
     };
-    inscribe_default_range_table_for_bit_width_over_first_three_columns(cs, RANGE_CHECK_TABLE_BIT_WIDTH)?;
+    inscribe_default_range_table_for_bit_width_over_first_three_columns(
+        cs,
+        RANGE_CHECK_TABLE_BIT_WIDTH,
+    )?;
 
     let block_aggregation_result = witness.block_aggregation_result.clone();
     let oracle_aggregation_results = witness.oracle_aggregation_results.clone();
@@ -133,9 +136,19 @@ pub fn final_aggregation<
     let block_vks_info = witness.block_vks_set.clone();
 
     let mut vks_raw_elements_witness = vec![];
-    vks_raw_elements_witness.push(block_vks_info.get(&block_circuit_type).unwrap().vk_encoding_witness);
+    vks_raw_elements_witness.push(
+        block_vks_info
+            .get(&block_circuit_type)
+            .unwrap()
+            .vk_encoding_witness,
+    );
     for (circuit_type, _) in &oracle_aggregation_proof {
-        vks_raw_elements_witness.push(oracle_vks_info.get(circuit_type).unwrap().vk_encoding_witness);
+        vks_raw_elements_witness.push(
+            oracle_vks_info
+                .get(circuit_type)
+                .unwrap()
+                .vk_encoding_witness,
+        );
     }
 
     // prepare vk_commitments circuit variables
@@ -156,7 +169,10 @@ pub fn final_aggregation<
         BlockAggregationOutputData::alloc_from_witness(cs, Some(block_aggregation_result))?;
     let mut oracle_aggregation_data = vec![];
     for data in oracle_aggregation_results {
-        oracle_aggregation_data.push(OracleAggregationOutputData::alloc_from_witness(cs, Some(data))?);
+        oracle_aggregation_data.push(OracleAggregationOutputData::alloc_from_witness(
+            cs,
+            Some(data),
+        )?);
     }
     let first_oracle_agg_data = oracle_aggregation_data[0].clone();
 
@@ -166,10 +182,15 @@ pub fn final_aggregation<
     let mut aggregation_proofs = vec![block_aggregation_proof];
 
     let block_circuit_type = Num::alloc(cs, Some(IntoFr::<E>::into_fr(block_circuit_type as u8)))?;
-    let vk_commitment_to_use = check_and_select_vk_commitment(cs, &block_vk_commitments, block_circuit_type)?;
+    let vk_commitment_to_use =
+        check_and_select_vk_commitment(cs, &block_vk_commitments, block_circuit_type)?;
 
     used_key_commitments.push(vk_commitment_to_use);
-    inputs.push(commit_variable_length_encodable_item(cs, &block_aggregation_data, commit_function)?);
+    inputs.push(commit_variable_length_encodable_item(
+        cs,
+        &block_aggregation_data,
+        commit_function,
+    )?);
     casted_aggregation_results.push(block_aggregation_data.aggregation_output_data.clone());
 
     let mut oracle_price_commitment = Num::zero();
@@ -177,12 +198,17 @@ pub fn final_aggregation<
     let mut last_oracle_vk_hash = Num::zero();
     let mut last_oracle_input_data = OracleAggregationOutputData::empty();
     let mut used_pyth_num = Num::zero();
-    for (idx, (single_oracle_data, (circuit_type, proof))) in oracle_aggregation_data.into_iter()
+    for (idx, (single_oracle_data, (circuit_type, proof))) in oracle_aggregation_data
+        .into_iter()
         .zip(oracle_aggregation_proof)
         .enumerate()
     {
         let oracle_circuit_type = Num::alloc(cs, Some(IntoFr::<E>::into_fr(circuit_type as u8)))?;
-        let is_padding = Num::equals(cs, &single_oracle_data.prices_commitment.prices_commitment, &Num::zero())?;
+        let is_padding = Num::equals(
+            cs,
+            &single_oracle_data.prices_commitment.prices_commitment,
+            &Num::zero(),
+        )?;
         let temp_used_pyth_num =
             used_pyth_num.add(cs, &Num::Constant(IntoFr::<E>::into_fr(MAX_AGGREGATE_NUM)))?;
         used_pyth_num =
@@ -193,8 +219,9 @@ pub fn final_aggregation<
         } else {
             last_oracle_vk_hash.enforce_equal(cs, &single_oracle_data.oracle_vks_hash)?;
             oracle_price_commitment = {
-                let offset = prices_num.mul(cs, &single_oracle_data.prices_commitment.prices_commitment)?;
-                oracle_price_commitment .add(cs, &offset)?
+                let offset =
+                    prices_num.mul(cs, &single_oracle_data.prices_commitment.prices_commitment)?;
+                oracle_price_commitment.add(cs, &offset)?
             };
             prices_num = prices_num.add(cs, &single_oracle_data.prices_commitment.prices_num)?;
             single_oracle_data
@@ -212,10 +239,15 @@ pub fn final_aggregation<
 
         aggregation_proofs.push(proof);
 
-        let vk_commitment_to_use = check_and_select_vk_commitment(cs, &oracle_vk_commitments, oracle_circuit_type)?;
+        let vk_commitment_to_use =
+            check_and_select_vk_commitment(cs, &oracle_vk_commitments, oracle_circuit_type)?;
 
         used_key_commitments.push(vk_commitment_to_use);
-        inputs.push(commit_encodable_item(cs, &single_oracle_data, commit_function)?);
+        inputs.push(commit_encodable_item(
+            cs,
+            &single_oracle_data,
+            commit_function,
+        )?);
         casted_aggregation_results.push(single_oracle_data.aggregation_output_data.clone());
 
         last_oracle_vk_hash = single_oracle_data.oracle_vks_hash;
@@ -249,8 +281,16 @@ pub fn final_aggregation<
     let vks_composition_data = VksCompositionData {
         oracle_vks_hash: first_oracle_agg_data.oracle_vks_hash,
         block_vks_root: block_aggregation_data.vk_root,
-        oracle_agg_vks_commitment: enforce_commit_vks_commitments(cs, oracle_vk_commitments, commit_function)?,
-        block_agg_vks_commitment: enforce_commit_vks_commitments(cs, block_vk_commitments, commit_function)?,
+        oracle_agg_vks_commitment: enforce_commit_vks_commitments(
+            cs,
+            oracle_vk_commitments,
+            commit_function,
+        )?,
+        block_agg_vks_commitment: enforce_commit_vks_commitments(
+            cs,
+            block_vk_commitments,
+            commit_function,
+        )?,
     };
     let vks_commitment = commit_encodable_item(cs, &vks_composition_data, commit_function)?;
 
@@ -264,7 +304,10 @@ pub fn final_aggregation<
         RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME,
     )?;
     let public_input_data = FinalAggregationOutputData::<E> {
-        total_agg_num: Num::alloc(cs, Some(E::Fr::from_repr((num_proofs_aggregated as u64).into()).unwrap()))?,
+        total_agg_num: Num::alloc(
+            cs,
+            Some(E::Fr::from_repr((num_proofs_aggregated as u64).into()).unwrap()),
+        )?,
         vks_commitment,
         blocks_commitments: block_aggregation_data.blocks_commitments,
         oracle_data: OracleOnChainData {
@@ -306,7 +349,7 @@ pub fn final_aggregation<
 pub fn check_and_select_vk_commitment<E: Engine, CS: ConstraintSystem<E>>(
     cs: &mut CS,
     vk_commitments: &[(Num<E>, Num<E>)],
-    selector: Num<E>
+    selector: Num<E>,
 ) -> Result<Num<E>, SynthesisError> {
     let mut vk_commitment_to_use = Num::zero();
     let mut vk_existing_flags = Vec::with_capacity(vk_commitments.len());
