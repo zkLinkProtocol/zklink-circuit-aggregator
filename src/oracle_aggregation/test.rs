@@ -10,9 +10,9 @@ use std::collections::BTreeMap;
 #[test]
 fn test_oracle_aggregation_circuit() {
     use crate::OracleCircuitType::*;
-    use zklink_oracle::ZkLinkOracle;
+    use zklink_oracle::pyth::PriceOracle;
 
-    let test_circuit = ZkLinkOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
+    let test_circuit = PriceOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
     let oracle_inputs_data = {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {
