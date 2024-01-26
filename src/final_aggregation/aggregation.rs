@@ -1,5 +1,4 @@
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Gate, GateInternal, RANGE_CHECK_SINGLE_APPLICATION_TABLE_NAME};
-use advanced_circuit_component::glue::binary_hashes::sha256;
 use advanced_circuit_component::vm::primitives::uint256::UInt256;
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::final_aggregation::witness::{
@@ -329,9 +328,10 @@ pub fn final_aggregation<
         .collect::<Result<Vec<_>, _>>()?;
     let guardian_set_bytes = guardian_set_bytes.into_iter().flatten().collect::<Vec<_>>();
 
-    let guardian_set_hash_by_has256 = {
-        let num = sha256(cs, &guardian_set_bytes)?;
-        UInt256::from_be_bytes_fixed(cs, &num)?
+    let guardian_set_hash = {
+        let digest = keccak_gadget.digest_from_bytes(cs, &guardian_set_bytes)?;
+        let guardian_set_keccak_hash = keccak_output_into_bytes(cs, digest)?;
+        UInt256::from_be_bytes_fixed(cs, &guardian_set_keccak_hash)?
     };
 
     let public_input_data = FinalAggregationOutputData::<E> {
@@ -344,7 +344,7 @@ pub fn final_aggregation<
         oracle_data: OracleOnChainData {
             used_pyth_num,
             guardian_set_index: Num::alloc(cs, Some(IntoFr::<E>::into_fr(GUARDIAN_SET_INDEX)))?,
-            guardian_set_hash: guardian_set_hash_by_has256,
+            guardian_set_hash,
             earliest_publish_time: first_oracle_agg_data.earliest_publish_time,
         },
         aggregation_output_data: NodeAggregationOutputData {
