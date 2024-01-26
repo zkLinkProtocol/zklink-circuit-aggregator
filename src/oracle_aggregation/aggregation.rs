@@ -1,10 +1,12 @@
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
+use advanced_circuit_component::traits::{CircuitEmpty, CSAllocatable};
+use zklink_oracle::witness::{OracleOutputData, OraclePricesCommitment};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
-    OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType, OracleOutputData,
+    OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType,
 };
-use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM, OraclePricesCommitment};
+use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -22,8 +24,6 @@ use advanced_circuit_component::recursion::recursion_tree::AggregationParameters
 use advanced_circuit_component::recursion::transcript::TranscriptGadget;
 use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
 use advanced_circuit_component::rescue_poseidon::HashParams;
-use advanced_circuit_component::traits::CSAllocatable;
-use advanced_circuit_component::traits::CircuitEmpty;
 use advanced_circuit_component::vm::partitioner::smart_and;
 use advanced_circuit_component::vm::primitives::small_uints::IntoFr;
 use crate::key_manager::enforce_commit_vks_commitments;
@@ -48,7 +48,13 @@ impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
                 &rns_params,
             )
         };
-        let params = (self.oracle_inputs_data.len(), rns_params, agg_params, padding, None);
+        let params = (
+            self.oracle_inputs_data.len(),
+            rns_params,
+            agg_params,
+            padding,
+            None,
+        );
         let (_public_input, _input_data) =
             aggregate_oracle_proofs(cs, Some(self), &commit_hash, params)?;
         Ok(())
