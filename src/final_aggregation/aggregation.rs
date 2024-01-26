@@ -198,6 +198,7 @@ pub fn final_aggregation<
     let mut last_oracle_vk_hash = Num::zero();
     let mut last_oracle_input_data = OracleAggregationOutputData::empty();
     let mut used_pyth_num = Num::zero();
+    let mut guardian_set_hash = None;
     for (idx, (single_oracle_data, (circuit_type, proof))) in oracle_aggregation_data
         .into_iter()
         .zip(oracle_aggregation_proof)
@@ -227,6 +228,9 @@ pub fn final_aggregation<
             single_oracle_data
                 .guardian_set_hash
                 .enforce_equal(cs, &last_oracle_input_data.guardian_set_hash)?;
+            if guardian_set_hash.is_none() {
+                guardian_set_hash = Some(single_oracle_data.guardian_set_hash);
+            }
             let (is_equal, is_greater) = prepacked_long_comparison(
                 cs,
                 &[single_oracle_data.earliest_publish_time],
@@ -252,6 +256,20 @@ pub fn final_aggregation<
 
         last_oracle_vk_hash = single_oracle_data.oracle_vks_hash;
         last_oracle_input_data = single_oracle_data;
+    }
+
+    if let Some(guardian_set_hash) = guardian_set_hash {
+        use zklink_oracle::gadgets::{ethereum::Address, poseidon::circuit_poseidon_hash};
+        let guardian_set = zklink_oracle::pyth::GUARDIAN_SET
+            .iter()
+            .map(|w| Address::from_address_witness(cs, w))
+            .collect::<Result<Vec<_>, _>>()?;
+        let guardian_set_num = guardian_set
+            .iter()
+            .map(|g| g.inner().to_num_unchecked(cs))
+            .collect::<Result<Vec<_>, _>>()?;
+        let expected_guardian_set_hash = circuit_poseidon_hash(cs, &guardian_set_num)?;
+        expected_guardian_set_hash.enforce_equal(cs, &guardian_set_hash)?;
     }
 
     let num_proofs_aggregated = num_proofs_aggregated_oracle + 1;
