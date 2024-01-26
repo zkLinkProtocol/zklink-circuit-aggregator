@@ -2398,7 +2398,7 @@ dependencies = [
 [[package]]
 name = "zklink-oracle"
 version = "0.1.0"
-source = "git+ssh://git@github.com/zkLinkProtocol/zklink-oracle?branch=main#9d6c14b5531949bd57f2d533d712ff0851c25836"
+source = "git+ssh://git@github.com/zkLinkProtocol/zklink-oracle?branch=main#30eddcea835aa6c765922c1ee0005258f227b000"
 dependencies = [
  "advanced_circuit_component",
  "anyhow",
@@ -2410,6 +2410,7 @@ dependencies = [
  "derivative",
  "hex",
  "k256 0.13.3",
+ "lazy_static",
  "num",
  "num-bigint 0.4.4",
  "pythnet-sdk",
