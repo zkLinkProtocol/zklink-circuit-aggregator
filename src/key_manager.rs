@@ -48,7 +48,6 @@ impl CircuitGenerator<Bn256> for OracleAggregationCircuit<'_, Bn256> {
 
     fn generate(params: &Self::Params) -> Self {
         let params = *params;
-        assert!(params <= 35);
         Self {
             oracle_inputs_data: vec![
                 <OracleOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness();

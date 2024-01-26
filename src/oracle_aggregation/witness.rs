@@ -40,7 +40,6 @@ pub struct OracleAggregationCircuit<'a, E: Engine> {
 
 impl OracleAggregationCircuit<'_, Bn256> {
     pub fn circuit_default(agg_num: usize, total_oracle_type_num: usize) -> Self {
-        assert!(agg_num <= 35);
         Self {
             oracle_inputs_data: vec![
                 <OracleOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(

@@ -37,13 +37,17 @@ impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
         let commit_hash = self.params.poseidon_hash();
         let transcript_params = &self.params.rescue_params;
 
-        let padding = PaddingCryptoComponent::new(
-            self.padding_component.padding_vk.clone(),
-            self.padding_component.padding_proof.clone(),
-            &commit_hash,
-            transcript_params,
-            &rns_params,
-        );
+        let padding = if self.padding_component.padding_proof.n == 0 {
+            PaddingCryptoComponent::default()
+        } else {
+            PaddingCryptoComponent::new(
+                self.padding_component.padding_vk.clone(),
+                self.padding_component.padding_proof.clone(),
+                &commit_hash,
+                transcript_params,
+                &rns_params,
+            )
+        };
         let params = (self.oracle_inputs_data.len(), rns_params, agg_params, padding, None);
         let (_public_input, _input_data) =
             aggregate_oracle_proofs(cs, Some(self), &commit_hash, params)?;
@@ -83,7 +87,7 @@ pub fn aggregate_oracle_proofs<
         PaddingCryptoComponent {
             padding_vk_commitment: _,
             padding_vk_encoding,
-            padding_public_input,
+            padding_public_input: _,
             padding_proof,
             ..
         },
@@ -134,13 +138,6 @@ pub fn aggregate_oracle_proofs<
             oracle_inputs_data.as_ref().map(|data| data[proof_idx].clone())
         )?;
         let input_commitment = commit_encodable_item(cs, &oracle_input_data, commit_function)?;
-        let input = Num::conditionally_select(
-            cs,
-            &is_padding,
-            &Num::Constant(padding_public_input[proof_idx]),
-            &input_commitment,
-        )?;
-
         let vk_commitment_to_use = check_and_select_vk_commitment(cs, &vk_commitments, used_circuit_type)?;
 
         guardian_set_hash = oracle_input_data.guardian_set_hash;
@@ -187,7 +184,7 @@ pub fn aggregate_oracle_proofs<
         )?;
 
         used_key_commitments.push(vk_commitment_to_use);
-        inputs.push(input);
+        inputs.push(input_commitment);
         last_oracle_input_data = oracle_input_data;
     }
     assert_eq!(used_key_commitments.len(), inputs.len());

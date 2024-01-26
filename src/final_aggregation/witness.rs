@@ -38,7 +38,6 @@ pub struct FinalAggregationCircuit<'a, E: Engine> {
 
 impl FinalAggregationCircuit<'_, Bn256> {
     pub fn circuit_default(oracle_agg_num: usize, total_block_vk_type_num: usize, total_oracle_vk_type_num: usize) -> Self {
-        assert!(oracle_agg_num <= 17);
         Self {
             block_aggregation_result:
                 <BlockAggregationOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness(),
