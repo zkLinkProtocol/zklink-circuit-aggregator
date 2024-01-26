@@ -14,10 +14,7 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     use crate::OracleCircuitType::*;
 
     println!("---------------------------oracle circuit start--------------------------------");
-    let test_circuit = ZkLinkOracle::<Bn256, 0, 0>::new(
-        vec![],
-        vec![[0u8; 20]]
-    ).unwrap();
+    let test_circuit = ZkLinkOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
     let oracle_inputs_data = {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {
@@ -26,24 +23,21 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
                 prices_commitment: data.prices_commitment.prices_commitment,
                 prices_num: data.prices_commitment.prices_num,
                 prices_commitment_base_sum: data.prices_commitment.prices_commitment_base_sum,
-                _marker: Default::default()
+                _marker: Default::default(),
             },
             earliest_publish_time: data.earliest_publish_time,
             _marker: Default::default(),
         }
     };
     let transcript = COMMON_CRYPTO_PARAMS.recursive_transcript_params();
-    let (proof, vk ) =
-        circuit_testing::prove_and_verify_circuit_for_params::<
-            Bn256,
-            _,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            RescueTranscriptForRecursion<Bn256>,
-            true
-        >(
-            test_circuit,
-            Some(transcript),
-        ).unwrap();
+    let (proof, vk) = circuit_testing::prove_and_verify_circuit_for_params::<
+        Bn256,
+        _,
+        PlonkCsWidth4WithNextStepAndCustomGatesParams,
+        RescueTranscriptForRecursion<Bn256>,
+        true,
+    >(test_circuit, Some(transcript))
+    .unwrap();
 
     println!("---------------------------oracle aggregation circuit start--------------------------------");
     let proof: UniformProof<Bn256> = unsafe { std::mem::transmute(proof) };
@@ -51,8 +45,10 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     let oracle_aggregation_circuit = OracleAggregationCircuit::generate(
         vec![oracle_inputs_data],
         vec![(Aggregation1, proof.clone())],
-        (0..crate::oracle_aggregation::ORACLE_CIRCUIT_TYPES_NUM).map(|n| (n.into(), vk.clone())).collect(),
-        proof
+        (0..crate::oracle_aggregation::ORACLE_CIRCUIT_TYPES_NUM)
+            .map(|n| (n.into(), vk.clone()))
+            .collect(),
+        proof,
     );
     let oracle_agg_output = oracle_aggregation_circuit.output.clone().unwrap();
     let (oracle_aggregation_proof, oracle_agg_vk) =
@@ -61,30 +57,28 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
             _,
             PlonkCsWidth4WithNextStepAndCustomGatesParams,
             RescueTranscriptForRecursion<Bn256>,
-            true
-        >(
-            oracle_aggregation_circuit,
-            Some(transcript)
-        ).unwrap();
+            true,
+        >(oracle_aggregation_circuit, Some(transcript))
+        .unwrap();
 
     println!("---------------------------block aggregation circuit start--------------------------------");
-    let (block_aggregation_circuit, aggregation_storage) = crate::block_aggregation::test_utils::create_test_block_aggregation_circuit();
+    let (block_aggregation_circuit, aggregation_storage) =
+        crate::block_aggregation::test_utils::create_test_block_aggregation_circuit();
     let block_output_data = aggregation_storage.output;
-    let (proof, vk ) =
-        circuit_testing::prove_and_verify_circuit_for_params::<
-            Bn256,
-            _,
-            PlonkCsWidth4WithNextStepAndCustomGatesParams,
-            RescueTranscriptForRecursion<Bn256>,
-            true
-        >(
-            block_aggregation_circuit,
-            Some(transcript),
-        ).unwrap();
+    let (proof, vk) = circuit_testing::prove_and_verify_circuit_for_params::<
+        Bn256,
+        _,
+        PlonkCsWidth4WithNextStepAndCustomGatesParams,
+        RescueTranscriptForRecursion<Bn256>,
+        true,
+    >(block_aggregation_circuit, Some(transcript))
+    .unwrap();
 
     println!("---------------------------final aggregation circuit start--------------------------------");
-    let oracle_aggregation_proof: UniformProof<Bn256> = unsafe { std::mem::transmute(oracle_aggregation_proof) };
-    let oracle_agg_vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(oracle_agg_vk) };
+    let oracle_aggregation_proof: UniformProof<Bn256> =
+        unsafe { std::mem::transmute(oracle_aggregation_proof) };
+    let oracle_agg_vk: UniformVerificationKey<Bn256> =
+        unsafe { std::mem::transmute(oracle_agg_vk) };
     let block_agg_proof: UniformProof<Bn256> = unsafe { std::mem::transmute(proof) };
     let block_agg_vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(vk) };
     FinalAggregationCircuit::generate(
@@ -108,16 +102,14 @@ fn test_final_aggregation_circuit_satisfied() {
 #[test]
 fn test_final_aggregation_circuit_proving_and_verify() {
     let final_aggregation_circuit = create_test_final_aggregation_circuit();
-    let (proof, vk ) = circuit_testing::prove_and_verify_circuit_for_params::<
+    let (proof, vk) = circuit_testing::prove_and_verify_circuit_for_params::<
         Bn256,
         _,
         PlonkCsWidth4WithNextStepAndCustomGatesParams,
         RollingKeccakTranscript<Fr>,
-        true
-    >(
-        final_aggregation_circuit,
-        None
-    ).unwrap();
+        true,
+    >(final_aggregation_circuit, None)
+    .unwrap();
 
     let key_path = PathBuf::from(r"./final_aggregation.key");
     let vk_file =
@@ -128,6 +120,7 @@ fn test_final_aggregation_circuit_proving_and_verify() {
     let proof_path = PathBuf::from(r"./final_aggregation.proof");
     let proof_file =
         std::fs::File::create(&proof_path).expect("can't create file at final proof path");
-    proof.write(proof_file)
+    proof
+        .write(proof_file)
         .expect("Failed to save final aggregation proof");
 }

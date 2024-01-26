@@ -95,7 +95,10 @@ where
             );
             cs.add_table(bitwise_logic_table)?;
         };
-        inscribe_default_range_table_for_bit_width_over_first_three_columns(cs, RANGE_CHECK_TABLE_BIT_WIDTH)?;
+        inscribe_default_range_table_for_bit_width_over_first_three_columns(
+            cs,
+            RANGE_CHECK_TABLE_BIT_WIDTH,
+        )?;
 
         let num_bits_in_proof_id = self.vk_tree_depth;
 
@@ -398,15 +401,41 @@ where
             final_price_commitment,
             blocks_commitments,
             aggregation_output_data: NodeAggregationOutputData {
-                pair_with_x_x: pair_with_x[0..NUM_LIMBS].iter().copied().map(Num::Variable).collect::<Vec<_>>().try_into().unwrap(),
-                pair_with_x_y: pair_with_x[NUM_LIMBS..].iter().copied().map(Num::Variable).collect::<Vec<_>>().try_into().unwrap(),
-                pair_with_generator_x: pair_with_generator[0..NUM_LIMBS].iter().copied().map(Num::Variable).collect::<Vec<_>>().try_into().unwrap(),
-                pair_with_generator_y: pair_with_generator[NUM_LIMBS..].iter().copied().map(Num::Variable).collect::<Vec<_>>().try_into().unwrap(),
+                pair_with_x_x: pair_with_x[0..NUM_LIMBS]
+                    .iter()
+                    .copied()
+                    .map(Num::Variable)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                pair_with_x_y: pair_with_x[NUM_LIMBS..]
+                    .iter()
+                    .copied()
+                    .map(Num::Variable)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                pair_with_generator_x: pair_with_generator[0..NUM_LIMBS]
+                    .iter()
+                    .copied()
+                    .map(Num::Variable)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
+                pair_with_generator_y: pair_with_generator[NUM_LIMBS..]
+                    .iter()
+                    .copied()
+                    .map(Num::Variable)
+                    .collect::<Vec<_>>()
+                    .try_into()
+                    .unwrap(),
             },
         };
         let commit_function = GenericHasher::new_from_params(self.poseidon_params);
-        let input_commitment = commit_variable_length_encodable_item(cs, &block_aggregation_data, &commit_function)?;
-        let expected_input_commitment = AllocatedNum::alloc(cs, || Ok(self.input_commitment.unwrap()))?;
+        let input_commitment =
+            commit_variable_length_encodable_item(cs, &block_aggregation_data, &commit_function)?;
+        let expected_input_commitment =
+            AllocatedNum::alloc(cs, || Ok(self.input_commitment.unwrap()))?;
         expected_input_commitment.enforce_equal(cs, &input_commitment.get_variable())?;
         expected_input_commitment.inputize(cs)?;
 

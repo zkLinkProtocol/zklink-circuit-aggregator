@@ -80,11 +80,15 @@ impl<E: Engine> BlockAggregationOutputDataWitness<E> {
         assert_eq!(pair_with_x.len(), NUM_LIMBS * 2);
 
         let (pair_with_x_x, pair_with_x_y) = pair_with_x.split_at(NUM_LIMBS);
-        let (pair_with_generator_x, pair_with_generator_y) = pair_with_generator.split_at(NUM_LIMBS);
+        let (pair_with_generator_x, pair_with_generator_y) =
+            pair_with_generator.split_at(NUM_LIMBS);
         BlockAggregationOutputDataWitness {
             vk_root: vks_tree_root,
             final_price_commitment,
-            blocks_commitments: public_input_data.iter().map(|data| data.block_commitment).collect(),
+            blocks_commitments: public_input_data
+                .iter()
+                .map(|data| data.block_commitment)
+                .collect(),
             aggregation_output_data: NodeAggregationOutputDataWitness {
                 pair_with_x_x: pair_with_x_x.to_vec().try_into().unwrap(),
                 pair_with_x_y: pair_with_x_y.to_vec().try_into().unwrap(),

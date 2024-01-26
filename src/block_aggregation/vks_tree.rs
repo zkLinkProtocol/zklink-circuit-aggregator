@@ -110,7 +110,7 @@ pub fn create_vks_tree(
     let (tree, witness) = make_vks_tree(
         &padded,
         &COMMON_CRYPTO_PARAMS.rescue_params,
-        &COMMON_CRYPTO_PARAMS.rns_params
+        &COMMON_CRYPTO_PARAMS.rns_params,
     );
 
     Ok((max_valid_idx, (tree, witness)))
