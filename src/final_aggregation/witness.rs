@@ -12,10 +12,6 @@ use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::
 use advanced_circuit_component::franklin_crypto::plonk::circuit::boolean::Boolean;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::byte::{Byte, IntoBytes};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::hashes_with_tables::keccak::gadgets::Keccak256Gadget;
-use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
-use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, commit_variable_length_encodable_item};
-use advanced_circuit_component::recursion::node_aggregation::NodeAggregationOutputData;
-use advanced_circuit_component::recursion::recursion_tree::NUM_LIMBS;
 use advanced_circuit_component::scheduler::block_header::keccak_output_into_bytes;
 use advanced_circuit_component::testing::{Bn256, create_test_artifacts};
 use advanced_circuit_component::traits::*;
@@ -127,46 +123,16 @@ pub struct FinalAggregationOutputData<E: Engine> {
     pub vks_commitment: Num<E>,
     pub blocks_commitments: Vec<Num<E>>,
     pub oracle_data: OracleOnChainData<E>,
-    pub aggregation_output_data: NodeAggregationOutputData<E>,
+    pub aggregation_output_data: [UInt256<E>; 4],
 }
 
 impl<E: Engine> FinalAggregationOutputData<E> {
-    pub fn encode<
-        CS: ConstraintSystem<E>,
-        R: CircuitArithmeticRoundFunction<E, A_WIDTH, S_WIDTH, StateElement = Num<E>>,
-        const A_WIDTH: usize,
-        const S_WIDTH: usize,
-    >(
-        &self,
-        cs: &mut CS,
-        commit_function: &R,
-    ) -> Result<Vec<Num<E>>, SynthesisError> {
-        let mut encodes = Vec::with_capacity(3 + NUM_LIMBS * 4);
-        encodes.push(self.vks_commitment);
-        encodes.push(commit_variable_length_encodable_item(
-            cs,
-            &self.blocks_commitments,
-            commit_function,
-        )?);
-        encodes.push(commit_encodable_item(
-            cs,
-            &self.oracle_data,
-            commit_function,
-        )?);
-        encodes.extend(CircuitFixedLengthEncodable::encode(
-            &self.aggregation_output_data,
-            cs,
-        )?);
-        assert_eq!(encodes.len(), encodes.capacity());
-        Ok(encodes)
-    }
-
     pub fn encode_bytes<CS: ConstraintSystem<E>>(
         &self,
         cs: &mut CS,
         keccak_gadget: &Keccak256Gadget<E>,
     ) -> Result<Vec<Byte<E>>, SynthesisError> {
-        let len = 1usize + self.blocks_commitments.len() + 1 + 4 * NUM_LIMBS;
+        let len = 1usize + self.blocks_commitments.len() + 1 + 4;
         let mut encodes = Vec::with_capacity(len * 32);
         encodes.extend(self.vks_commitment.into_be_bytes(cs)?);
 
@@ -183,15 +149,7 @@ impl<E: Engine> FinalAggregationOutputData<E> {
         let input_keccak_hash = keccak_output_into_bytes(cs, digest)?;
         encodes.extend(input_keccak_hash);
 
-        for coord_limb in [
-            self.aggregation_output_data.pair_with_generator_x,
-            self.aggregation_output_data.pair_with_generator_y,
-            self.aggregation_output_data.pair_with_x_x,
-            self.aggregation_output_data.pair_with_x_y,
-        ]
-        .iter()
-        .flatten()
-        {
+        for coord_limb in self.aggregation_output_data.iter() {
             encodes.extend(coord_limb.into_be_bytes(cs)?);
         }
         assert_eq!(encodes.len(), encodes.capacity());
