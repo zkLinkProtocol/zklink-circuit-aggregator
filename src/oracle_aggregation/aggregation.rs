@@ -1,7 +1,7 @@
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::{Circuit, Gate, GateInternal};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::gates::selector_optimized_with_d_next::SelectorOptimizedWidth4MainGateWithDNext;
 use advanced_circuit_component::traits::{CircuitEmpty, CSAllocatable};
-use zklink_oracle::witness::{OracleOutputData, OraclePricesCommitment};
+use zklink_oracle::witness::{OracleOutputData, OraclePricesSummarize};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
     OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType,
@@ -178,12 +178,10 @@ pub fn aggregate_oracle_proofs<
         }
         let offset = prices_num.mul(
             cs,
-            &oracle_input_data
-                .prices_commitment
-                .prices_commitment_base_sum,
+            &oracle_input_data.prices_summarize.commitment_base_sum,
         )?;
         let acc_price_commitment = final_price_commitment
-            .add(cs, &oracle_input_data.prices_commitment.prices_commitment)?
+            .add(cs, &oracle_input_data.prices_summarize.commitment)?
             .add(cs, &offset)?;
         final_price_commitment = Num::conditionally_select(
             cs,
@@ -191,11 +189,10 @@ pub fn aggregate_oracle_proofs<
             &final_price_commitment,
             &acc_price_commitment,
         )?;
-        let new_prices_num = prices_num.add(cs, &oracle_input_data.prices_commitment.prices_num)?;
+        let new_prices_num = prices_num.add(cs, &oracle_input_data.prices_summarize.num)?;
         prices_num = Num::conditionally_select(cs, &is_padding, &prices_num, &new_prices_num)?;
-        let new_prices_commitment_base_sum = oracle_input_data
-            .prices_commitment
-            .prices_commitment_base_sum;
+        let new_prices_commitment_base_sum =
+            oracle_input_data.prices_summarize.commitment_base_sum;
         prices_commitment_base_sum = Num::conditionally_select(
             cs,
             &is_padding,
@@ -236,10 +233,10 @@ pub fn aggregate_oracle_proofs<
     let public_input_data = OracleAggregationOutputData {
         oracle_vks_hash: enforce_commit_vks_commitments(cs, vk_commitments, commit_function)?,
         guardian_set_hash,
-        prices_commitment: OraclePricesCommitment {
-            prices_commitment: final_price_commitment,
-            prices_num,
-            prices_commitment_base_sum,
+        prices_summarize: OraclePricesSummarize {
+            commitment: final_price_commitment,
+            num: prices_num,
+            commitment_base_sum: prices_commitment_base_sum,
         },
         earliest_publish_time,
         aggregation_output_data: NodeAggregationOutputData {
