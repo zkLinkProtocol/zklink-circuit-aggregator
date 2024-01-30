@@ -11,6 +11,7 @@ pub mod params;
 pub use advanced_circuit_component as advanced_components;
 pub use advanced_circuit_component::franklin_crypto;
 
+pub use block_aggregation::*;
 pub use crypto_utils::*;
 pub use final_aggregation::*;
 pub use oracle_aggregation::*;
