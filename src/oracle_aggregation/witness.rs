@@ -19,7 +19,7 @@ use advanced_circuit_component::vm::structural_eq::*;
 use cs_derive::*;
 use derivative::Derivative;
 use std::collections::BTreeMap;
-use zklink_oracle::witness::{OracleOutputData, OracleOutputDataWitness, OraclePricesCommitment};
+use zklink_oracle::witness::{OracleOutputData, OracleOutputDataWitness, OraclePricesSummarize};
 
 pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
 pub const ALL_AGGREGATION_TYPES: [OracleCircuitType; ORACLE_CIRCUIT_TYPES_NUM] = [
@@ -152,7 +152,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
 pub struct OracleAggregationOutputData<E: Engine> {
     pub oracle_vks_hash: Num<E>,
     pub guardian_set_hash: Num<E>,
-    pub prices_commitment: OraclePricesCommitment<E>,
+    pub prices_summarize: OraclePricesSummarize<E>,
     pub earliest_publish_time: Num<E>,
     pub aggregation_output_data: NodeAggregationOutputData<E>,
 }
@@ -162,7 +162,7 @@ impl<E: Engine> CircuitEmpty<E> for OracleAggregationOutputData<E> {
         Self {
             oracle_vks_hash: Num::zero(),
             guardian_set_hash: Num::zero(),
-            prices_commitment: CircuitEmpty::empty(),
+            prices_summarize: CircuitEmpty::empty(),
             earliest_publish_time: Num::zero(),
             aggregation_output_data: CircuitEmpty::empty(),
         }

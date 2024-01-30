@@ -208,7 +208,7 @@ pub fn final_aggregation<
         let oracle_circuit_type = Num::alloc(cs, Some(IntoFr::<E>::into_fr(circuit_type as u8)))?;
         let is_padding = Num::equals(
             cs,
-            &single_oracle_data.prices_commitment.prices_commitment,
+            &single_oracle_data.prices_summarize.commitment,
             &Num::zero(),
         )?;
         let temp_used_pyth_num =
@@ -217,15 +217,15 @@ pub fn final_aggregation<
             Num::conditionally_select(cs, &is_padding, &used_pyth_num, &temp_used_pyth_num)?;
 
         if idx == 0 {
-            oracle_price_commitment = single_oracle_data.prices_commitment.prices_commitment;
+            oracle_price_commitment = single_oracle_data.prices_summarize.commitment;
         } else {
             last_oracle_vk_hash.enforce_equal(cs, &single_oracle_data.oracle_vks_hash)?;
             oracle_price_commitment = {
                 let offset =
-                    prices_num.mul(cs, &single_oracle_data.prices_commitment.prices_commitment)?;
+                    prices_num.mul(cs, &single_oracle_data.prices_summarize.commitment)?;
                 oracle_price_commitment.add(cs, &offset)?
             };
-            prices_num = prices_num.add(cs, &single_oracle_data.prices_commitment.prices_num)?;
+            prices_num = prices_num.add(cs, &single_oracle_data.prices_summarize.num)?;
             single_oracle_data
                 .guardian_set_hash
                 .enforce_equal(cs, &last_oracle_input_data.guardian_set_hash)?;
