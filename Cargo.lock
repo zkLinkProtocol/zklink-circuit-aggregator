@@ -864,6 +864,7 @@ name = "final_aggregation"
 version = "0.1.0"
 dependencies = [
  "advanced_circuit_component",
+ "base64 0.21.7",
  "circuit_testing",
  "cs_derive",
  "cs_derive_traits",
@@ -1612,7 +1613,7 @@ dependencies = [
 [[package]]
 name = "pythnet-sdk"
 version = "2.0.0"
-source = "git+https://github.com/pyth-network/pyth-crosschain#6870209f4543be75483a14b013b2f6020b7208a3"
+source = "git+https://github.com/pyth-network/pyth-crosschain#2952eb0dc2c72cab821fe6b81166e53109a006e6"
 dependencies = [
  "bincode",
  "borsh",
@@ -2398,7 +2399,7 @@ dependencies = [
 [[package]]
 name = "zklink-oracle"
 version = "0.1.0"
-source = "git+ssh://git@github.com/zkLinkProtocol/zklink-oracle?branch=main#68eaa16557e8419735f780ff86695aac5fded121"
+source = "git+ssh://git@github.com/zkLinkProtocol/zklink-oracle?branch=main#f115d106be153899ffa148d4a5796f48145a1e0c"
 dependencies = [
  "advanced_circuit_component",
  "anyhow",
