@@ -15,7 +15,7 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     use crate::OracleCircuitType::*;
 
     println!("---------------------------oracle circuit start--------------------------------");
-    let test_circuit = PriceOracle::<Bn256, 0, 0>::new(vec![], vec![[0u8; 20]]).unwrap();
+    let test_circuit = PriceOracle::<Bn256, 0>::new(vec![], vec![[0u8; 20]], 0).unwrap();
     let oracle_inputs_data = {
         let data = test_circuit.public_input_data();
         OracleOutputDataWitness {
