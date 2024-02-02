@@ -2,7 +2,6 @@
 use crate::params::COMMON_CRYPTO_PARAMS;
 use crate::{
     OracleAggregationCircuit, PaddingCryptoComponent, UniformProof, UniformVerificationKey,
-    ORACLE_CIRCUIT_TYPES_NUM,
 };
 use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRoundFunction;
 use advanced_circuit_component::franklin_crypto::bellman::bn256::Bn256;
@@ -67,14 +66,9 @@ impl CircuitGenerator<Bn256> for OracleAggregationCircuit<'_, Bn256> {
                 <OracleOutputData<Bn256> as CSWitnessable<Bn256>>::placeholder_witness();
                 params
             ],
-            proof_witnesses: vec![(0.into(), UniformProof::empty()); params],
-            vks_set: (0..ORACLE_CIRCUIT_TYPES_NUM)
-                .map(|n| (n.into(), Default::default()))
-                .collect(),
-            vk_encoding_witnesses: vec![
-                [Default::default(); VK_ENCODING_LENGTH];
-                ORACLE_CIRCUIT_TYPES_NUM
-            ],
+            proof_witnesses: vec![(0, UniformProof::empty()); params],
+            vks_set: (0..6).map(|n| (n as u8, Default::default())).collect(),
+            vk_encoding_witnesses: vec![[Default::default(); VK_ENCODING_LENGTH]; 6],
             params: &COMMON_CRYPTO_PARAMS,
             output: None,
             padding_component: PaddingCryptoComponent::default(),

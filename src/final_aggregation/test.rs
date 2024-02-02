@@ -12,8 +12,6 @@ use advanced_circuit_component::franklin_crypto::bellman::plonk::commitments::tr
 use crate::params::{COMMON_CRYPTO_PARAMS, RescueTranscriptForRecursion};
 
 fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, Bn256> {
-    use crate::OracleCircuitType::*;
-
     println!("---------------------------oracle circuit start--------------------------------");
     let test_circuit = PriceOracle::<Bn256, 0>::new(vec![], vec![[0u8; 20]], 0).unwrap();
     let oracle_inputs_data = {
@@ -45,10 +43,8 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     let vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(vk) };
     let oracle_aggregation_circuit = OracleAggregationCircuit::generate(
         vec![oracle_inputs_data],
-        vec![(Aggregation1, proof.clone())],
-        (0..crate::oracle_aggregation::ORACLE_CIRCUIT_TYPES_NUM)
-            .map(|n| (n.into(), vk.clone()))
-            .collect(),
+        vec![(1, proof.clone())],
+        (0..6).map(|n| (n as u8, vk.clone())).collect(),
         proof,
     );
     let oracle_agg_output = oracle_aggregation_circuit.output.clone().unwrap();
