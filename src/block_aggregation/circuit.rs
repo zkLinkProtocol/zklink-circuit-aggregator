@@ -35,7 +35,7 @@ use super::DefaultPoseidonParams;
 use super::witness::{BlockAggregationOutputData, BlockPublicInputData, DefaultRescueParams};
 
 pub const ZKLINK_NUM_INPUTS: usize = 1;
-pub const ALLIGN_FIELD_ELEMENTS_TO_BITS: usize = 256;
+pub const ALIGN_FIELD_ELEMENTS_TO_BITS: usize = 256;
 
 #[derive(Clone, Debug)]
 pub struct RecursiveAggregationCircuit<
@@ -452,15 +452,15 @@ where
     }
 }
 
-fn allocated_num_to_alligned_big_endian<E: Engine, CS: ConstraintSystem<E>>(
+fn allocated_num_to_aligned_big_endian<E: Engine, CS: ConstraintSystem<E>>(
     cs: &mut CS,
     el: &AllocatedNum<E>,
 ) -> Result<Vec<Boolean>, SynthesisError> {
     let mut bits = el.into_bits_le(cs, None)?;
 
-    assert!(bits.len() < ALLIGN_FIELD_ELEMENTS_TO_BITS);
+    assert!(bits.len() < ALIGN_FIELD_ELEMENTS_TO_BITS);
 
-    bits.resize(ALLIGN_FIELD_ELEMENTS_TO_BITS, Boolean::constant(false));
+    bits.resize(ALIGN_FIELD_ELEMENTS_TO_BITS, Boolean::constant(false));
 
     bits.reverse();
 
@@ -503,7 +503,7 @@ fn serialize_point_into_big_endian<
     for coord in vec![x, y].into_iter() {
         for limb in coord.into_limbs().into_iter() {
             let as_num = limb.into_variable(); // this checks coeff and constant term internally
-            serialized.extend(allocated_num_to_alligned_big_endian(cs, &as_num)?);
+            serialized.extend(allocated_num_to_aligned_big_endian(cs, &as_num)?);
         }
     }
 

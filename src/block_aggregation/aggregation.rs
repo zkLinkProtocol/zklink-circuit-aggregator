@@ -585,7 +585,7 @@ where
     // e(proof_for_z + u*proof_for_z_omega, g2^x) =
     // e(z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening), g2^1)
     // however, we are going to compute the pairing itself outside the circuit
-    // here we only go to prepare the pairing argumets:
+    // here we only go to prepare the pairing arguments:
     // arg1 = proof_for_z + u*proof_for_z_omega
     // arg2 = z*proof_for_z + z*omega*u*proof_for_z_omega + (aggregated_commitment - aggregated_opening)
 

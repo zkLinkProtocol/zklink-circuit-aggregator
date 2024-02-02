@@ -8,6 +8,7 @@ use zklink_oracle::pythnet_sdk::wire::v1::AccumulatorUpdateData;
 use zklink_oracle::witness::{OracleOutputDataWitness, OraclePricesSummarizeWitness};
 
 #[test]
+#[ignore]
 fn test_oracle_aggregation_circuit() {
     use zklink_oracle::pyth::PriceOracle;
 

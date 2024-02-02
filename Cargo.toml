@@ -7,22 +7,20 @@ homepage = "https://zk.link/"
 license = "Apache-2.0"
 keywords = ["blockchain", "zklink"]
 categories = ["cryptography"]
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 advanced_circuit_component = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main", features = [
   "external_testing",
 ] }
-zklink-oracle = { git = "ssh://git@github.com/zkLinkProtocol/zklink-oracle", branch = "main" }
+circuit_testing = { git = "https://github.com/zkLinkProtocol/circuit_testing.git", branch = "main" }
 # zklink-oracle = { path = "../zklink-oracle/" }
 cs_derive = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 cs_derive_traits = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
-circuit_testing = { git = "https://github.com/zkLinkProtocol/circuit_testing.git", branch = "main" }
-serde = { version = "1.0.193", features = ["derive"] }
 derivative = { version = "2.2.0" }
-num-traits = "0.2"
 once_cell = "1.18.0"
+serde = { version = "1.0.193", features = ["derive"] }
+zklink-oracle = { git = "ssh://git@github.com/zkLinkProtocol/zklink-oracle", branch = "main" }
 
 [dev-dependencies]
 base64 = "0.21.7"
@@ -32,3 +30,6 @@ base64 = "0.21.7"
 # dependency at git otherwise those relative imports will fail.
 [patch.crates-io]
 serde_wormhole = { git = "https://github.com/wormhole-foundation/wormhole", tag = "v2.17.1" }
+
+[package.metadata.cargo-machete]
+ignored = ["cs_derive_traits"]
