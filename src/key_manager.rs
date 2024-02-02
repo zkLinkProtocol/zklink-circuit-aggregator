@@ -67,7 +67,7 @@ impl CircuitGenerator<Bn256> for OracleAggregationCircuit<'_, Bn256> {
                 params
             ],
             proof_witnesses: vec![(0, UniformProof::empty()); params],
-            vks_set: (0..6).map(|n| (n as u8, Default::default())).collect(),
+            vks_set: (0..6).map(|n| (n, Default::default())).collect(),
             vk_encoding_witnesses: vec![[Default::default(); VK_ENCODING_LENGTH]; 6],
             params: &COMMON_CRYPTO_PARAMS,
             output: None,
