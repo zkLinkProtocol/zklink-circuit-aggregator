@@ -100,7 +100,7 @@ pub fn aggregate_oracle_proofs<
             ..
         },
         g2_elements,
-        aggregation_nums,
+        all_aggregation_types,
     ) = params;
     inscribe_default_range_table_for_bit_width_over_first_three_columns(
         cs,
@@ -114,8 +114,8 @@ pub fn aggregate_oracle_proofs<
     let vks_set = project_ref!(witness, vks_set).cloned();
 
     // prepare vk_commitments circuit variables
-    let mut vk_commitments = Vec::with_capacity(aggregation_nums.len());
-    for circuit_type in aggregation_nums {
+    let mut vk_commitments = Vec::with_capacity(all_aggregation_types.len());
+    for circuit_type in all_aggregation_types {
         let circuit_type_num = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk_commitment = Num::alloc(
             cs,
