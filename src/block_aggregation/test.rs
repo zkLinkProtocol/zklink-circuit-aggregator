@@ -89,7 +89,7 @@ fn simulate_zklink_proofs() {
     let num_proofs_to_check = 2;
     let tree_depth = 3;
 
-    let (vk_for_recursive_circut, setup) =
+    let (vk_for_recursive_circuit, setup) =
         create_recursive_circuit_vk_and_setup(num_proofs_to_check, num_inputs, tree_depth, &crs)
             .expect("must create recursive circuit verification key");
 
@@ -106,7 +106,7 @@ fn simulate_zklink_proofs() {
         &proofs,
         &block_input_data,
         &proofs_to_check,
-        &vk_for_recursive_circut,
+        &vk_for_recursive_circuit,
         &setup,
         &crs,
         true,
@@ -116,7 +116,7 @@ fn simulate_zklink_proofs() {
 
     use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::verifier::verify;
     let is_valid = verify::<_, _, RescueTranscriptForRecursion<Bn256>>(
-        &vk_for_recursive_circut,
+        &vk_for_recursive_circuit,
         &proof,
         Some(transcript_params),
     )
@@ -128,7 +128,7 @@ fn simulate_zklink_proofs() {
     let file = std::fs::File::create(path).unwrap();
     let mut writer = std::io::BufWriter::with_capacity(1 << 24, file);
 
-    vk_for_recursive_circut
+    vk_for_recursive_circuit
         .write(&mut writer)
         .expect("must write");
 
@@ -139,13 +139,15 @@ fn simulate_zklink_proofs() {
     proof.write(&mut writer).expect("must write");
 
     let mut tmp = vec![];
-    vk_for_recursive_circut.write(&mut tmp).expect("must write");
+    vk_for_recursive_circuit
+        .write(&mut tmp)
+        .expect("must write");
 
     let vk_deser = NewVerificationKey::<Bn256, RecursiveAggregationCircuitBn256>::read(&tmp[..])
         .expect("must read");
 
     assert_eq!(
-        vk_for_recursive_circut.permutation_commitments,
+        vk_for_recursive_circuit.permutation_commitments,
         vk_deser.permutation_commitments
     );
 
@@ -168,7 +170,7 @@ fn simulate_zklink_proofs() {
 //     let file = std::fs::File::open(path).unwrap();
 //     let reader = std::io::BufReader::with_capacity(1 << 24, file);
 //
-//     let vk_for_recursive_circut =
+//     let vk_for_recursive_circuit =
 //         NewVerificationKey::<Bn256, RecursiveAggregationCircuitBn256>::read(reader)
 //             .expect("must read");
 //
@@ -187,7 +189,7 @@ fn simulate_zklink_proofs() {
 //     use franklin_crypto::bellman::plonk::better_better_cs::verifier::verify;
 //
 //     let is_valid = verify::<_, _, RescueTranscriptForRecursion<Bn256>>(
-//         &vk_for_recursive_circut,
+//         &vk_for_recursive_circuit,
 //         &proof,
 //         Some(transcript_params),
 //     )
@@ -249,7 +251,7 @@ fn simulate_many_proofs() {
 
     // this is dummy
     println!("Creating setup and verification key");
-    let (vk_for_recursive_circut, setup) =
+    let (vk_for_recursive_circuit, setup) =
         create_recursive_circuit_vk_and_setup(num_proofs_to_check, num_inputs, tree_depth, &crs)
             .expect("must create recursive circuit verification key");
 
@@ -270,7 +272,7 @@ fn simulate_many_proofs() {
         &proofs_to_check,
         &block_input_data,
         &proofs_indexes_to_check,
-        &vk_for_recursive_circut,
+        &vk_for_recursive_circuit,
         &setup,
         &crs,
         true,

@@ -869,7 +869,6 @@ dependencies = [
  "cs_derive",
  "cs_derive_traits",
  "derivative",
- "num-traits",
  "once_cell",
  "serde",
  "zklink-oracle",

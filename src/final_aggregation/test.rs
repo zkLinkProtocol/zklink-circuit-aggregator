@@ -111,13 +111,13 @@ fn test_final_aggregation_circuit_proving_and_verify() {
 
     let key_path = PathBuf::from(r"./final_2_agg.key");
     let vk_file =
-        std::fs::File::create(&key_path).expect("can't create file at final verification key path");
+        std::fs::File::create(key_path).expect("can't create file at final verification key path");
     vk.write(vk_file)
         .expect("Failed to save final verification key");
 
     let proof_path = PathBuf::from(r"./final_2_agg.proof");
     let proof_file =
-        std::fs::File::create(&proof_path).expect("can't create file at final proof path");
+        std::fs::File::create(proof_path).expect("can't create file at final proof path");
     proof
         .write(proof_file)
         .expect("Failed to save final aggregation proof");

@@ -227,8 +227,7 @@ pub fn final_aggregation<
         } else {
             last_oracle_vk_hash.enforce_equal(cs, &single_oracle_data.oracle_vks_hash)?;
             oracle_price_commitment = {
-                let offset =
-                    prices_num.mul(cs, &single_oracle_data.prices_summarize.commitment)?;
+                let offset = prices_num.mul(cs, &single_oracle_data.prices_summarize.commitment)?;
                 oracle_price_commitment.add(cs, &offset)?
             };
             prices_num = prices_num.add(cs, &single_oracle_data.prices_summarize.num)?;
@@ -343,28 +342,28 @@ pub fn final_aggregation<
         pair_with_generator_x,
         pair_with_generator_y,
         pair_with_x_x,
-        pair_with_x_y
+        pair_with_x_y,
     ]
-        .iter()
-        .map(|coord| {
-            let mut bytes_left = 32;
-            let take_by = 10; // 80 bits
-            let mut le_bytes: Vec<Byte<E>> = vec![];
-            for el in coord.into_iter() {
-                let as_u256 = UInt256::canonical_from_num(cs, &el)?;
-                let as_le_bytes = as_u256.into_le_bytes_strict(cs)?;
-                if bytes_left >= take_by {
-                    le_bytes.extend_from_slice(&as_le_bytes[..take_by]);
-                    bytes_left -= take_by;
-                } else {
-                    le_bytes.extend_from_slice(&as_le_bytes[..bytes_left]);
-                    break;
-                }
+    .iter()
+    .map(|coord| {
+        let mut bytes_left = 32;
+        let take_by = 10; // 80 bits
+        let mut le_bytes: Vec<Byte<E>> = vec![];
+        for el in coord.iter() {
+            let as_u256 = UInt256::canonical_from_num(cs, el)?;
+            let as_le_bytes = as_u256.into_le_bytes_strict(cs)?;
+            if bytes_left >= take_by {
+                le_bytes.extend_from_slice(&as_le_bytes[..take_by]);
+                bytes_left -= take_by;
+            } else {
+                le_bytes.extend_from_slice(&as_le_bytes[..bytes_left]);
+                break;
             }
-            let le_bytes = le_bytes.try_into().unwrap();
-            UInt256::from_le_bytes_fixed(cs, &le_bytes)
-        })
-        .collect::<Result<Vec<UInt256<E>>, SynthesisError>>()?;
+        }
+        let le_bytes = le_bytes.try_into().unwrap();
+        UInt256::from_le_bytes_fixed(cs, &le_bytes)
+    })
+    .collect::<Result<Vec<UInt256<E>>, SynthesisError>>()?;
 
     let public_input_data = FinalAggregationOutputData::<E> {
         total_agg_num: Num::alloc(

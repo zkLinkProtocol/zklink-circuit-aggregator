@@ -50,7 +50,7 @@ mod tests {
             let name = VM_BITWISE_LOGICAL_OPS_TABLE_NAME;
             let bitwise_logic_table = LookupTableApplication::new(
                 name,
-                BitwiseLogicTable::new(&name, 8),
+                BitwiseLogicTable::new(name, 8),
                 columns3.clone(),
                 None,
                 true,

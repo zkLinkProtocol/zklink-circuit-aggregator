@@ -368,7 +368,7 @@ pub fn proof_recursive_aggregate_for_zklink<'a>(
     recursive_circuit_vk: &NewVerificationKey<Bn256, RecursiveAggregationCircuitBn256<'a>>,
     recursive_circuit_setup: &NewSetup<Bn256, RecursiveAggregationCircuitBn256<'a>>,
     crs: &Crs<Bn256, CrsForMonomialForm>,
-    quick_check_if_satisifed: bool,
+    quick_check_if_satisfied: bool,
     worker: &Worker,
 ) -> Result<NewProof<Bn256, RecursiveAggregationCircuitBn256<'a>>, SynthesisError> {
     assert_eq!(
@@ -470,7 +470,7 @@ pub fn proof_recursive_aggregate_for_zklink<'a>(
         _m: std::marker::PhantomData,
     };
 
-    if quick_check_if_satisifed {
+    if quick_check_if_satisfied {
         println!("Checking if satisfied");
         let mut assembly = TrivialAssembly::<
             Bn256,

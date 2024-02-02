@@ -1,0 +1,96 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+  CLICOLOR: 1
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        platforms: [
+          { os: ubuntu-latest },
+        ]
+    runs-on: ${{ matrix.platforms.os }}
+    steps:
+      - name: clone repo
+        uses: actions/checkout@v2
+
+      - name: set ssh-pk
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: set rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          components: rustfmt, clippy
+
+      # https://github.com/Swatinem/rust-cache
+      - name: set rust cache for dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: setup mold linker
+        uses: rui314/setup-mold@v1
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo build
+        run: cargo build
+
+      - name: cargo clippy
+        run: cargo clippy --all --all-features --all-targets -- -D warnings
+
+#      - name: cargo test
+#        run: make test
+
+  # sort the dependencies in Cargo.toml
+  cargo_sort:
+    name: cargo sort
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-sort
+          version: latest
+      - run: cargo sort -c
+
+  # check cargo.toml format
+  taplo_fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: baptiste0928/cargo-install@v2
+        with:
+          crate: taplo-cli
+          version: latest
+      - run: taplo check
+
+  # check unused dependency
+  cargo_machete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - uses: baptiste0928/cargo-install@v2
+        with:
+          crate: cargo-machete
+          version: latest
+      - run: cargo-machete
