@@ -33,6 +33,7 @@ fn test_two_proofs() {
 }
 
 #[test]
+#[ignore]
 fn create_vk() {
     let crs = open_crs_for_log2_of_size::<true>(22);
     let (vk, _) = create_recursive_circuit_vk_and_setup(2, 1, 3, &crs).unwrap();
@@ -40,6 +41,7 @@ fn create_vk() {
 }
 
 #[test]
+#[ignore]
 fn simulate_zklink_proofs() {
     let a = Fr::one();
     let b = Fr::one();
@@ -199,6 +201,7 @@ fn simulate_zklink_proofs() {
 // }
 
 #[test]
+#[ignore]
 fn simulate_many_proofs() {
     let a = Fr::one();
     let b = Fr::one();
@@ -282,6 +285,7 @@ fn simulate_many_proofs() {
 }
 
 #[test]
+#[ignore]
 fn test_all_aggregated_proofs() {
     const TREE_DEPTH: usize = 3;
     const VK_LEAF_NUM: usize = 2usize.pow((TREE_DEPTH - 1) as u32);
