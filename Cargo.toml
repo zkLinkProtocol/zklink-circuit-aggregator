@@ -15,6 +15,7 @@ advanced_circuit_component = { git = "https://github.com/zkLinkProtocol/advanced
   "external_testing",
 ] }
 zklink-oracle = { git = "ssh://git@github.com/zkLinkProtocol/zklink-oracle", branch = "main" }
+# zklink-oracle = { path = "../zklink-oracle/" }
 cs_derive = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 cs_derive_traits = { git = "https://github.com/zkLinkProtocol/advanced-circuit-component.git", branch = "main" }
 circuit_testing = { git = "https://github.com/zkLinkProtocol/circuit_testing.git", branch = "main" }
