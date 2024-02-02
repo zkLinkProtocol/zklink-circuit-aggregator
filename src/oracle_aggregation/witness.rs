@@ -21,15 +21,7 @@ use derivative::Derivative;
 use std::collections::BTreeMap;
 use zklink_oracle::witness::{OracleOutputData, OracleOutputDataWitness, OraclePricesSummarize};
 
-pub const ORACLE_CIRCUIT_TYPES_NUM: usize = 6;
-pub const ALL_AGGREGATION_TYPES: [OracleCircuitType; ORACLE_CIRCUIT_TYPES_NUM] = [
-    OracleCircuitType::AggregationNull,
-    OracleCircuitType::Aggregation1,
-    OracleCircuitType::Aggregation2,
-    OracleCircuitType::Aggregation3,
-    OracleCircuitType::Aggregation4,
-    OracleCircuitType::Aggregation5,
-];
+pub type OracleCircuitType = u8;
 
 pub struct OracleAggregationCircuit<'a, E: Engine> {
     pub(crate) oracle_inputs_data: Vec<OracleOutputDataWitness<E>>,
@@ -53,7 +45,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
             ],
             proof_witnesses: vec![(0.into(), UniformProof::empty()); agg_num],
             vks_set: (0..total_oracle_type_num)
-                .map(|n| (n.into(), Default::default()))
+                .map(|n| (n as u8, Default::default()))
                 .collect(),
             vk_encoding_witnesses: vec![
                 [Default::default(); VK_ENCODING_LENGTH];
@@ -86,10 +78,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
             );
         }
 
-        let padding_vk = vks
-            .get(&OracleCircuitType::AggregationNull)
-            .cloned()
-            .unwrap();
+        let padding_vk = vks.get(&0u8).cloned().unwrap();
         let vks_set = vks
             .into_iter()
             .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
@@ -99,6 +88,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
             .map(|(t, _)| vks_set.get(t).unwrap().vk_encoding_witness)
             .collect::<Vec<_>>();
 
+        let aggregation_nums = vks_set.keys().cloned().collect();
         let mut witness = Self {
             oracle_inputs_data,
             vks_set,
@@ -125,6 +115,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
             agg_params,
             padding.clone(),
             None,
+            aggregation_nums,
         );
         let (mut cs, ..) = create_test_artifacts();
         let (_public_input, public_input_data) =
@@ -166,37 +157,5 @@ impl<E: Engine> CircuitEmpty<E> for OracleAggregationOutputData<E> {
             earliest_publish_time: Num::zero(),
             aggregation_output_data: CircuitEmpty::empty(),
         }
-    }
-}
-
-#[derive(
-    Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq, serde::Serialize, serde::Deserialize,
-)]
-pub enum OracleCircuitType {
-    AggregationNull = 0, // For padding
-    Aggregation1 = 1,
-    Aggregation2 = 2,
-    Aggregation3 = 3,
-    Aggregation4 = 4,
-    Aggregation5 = 5,
-}
-
-impl From<usize> for OracleCircuitType {
-    fn from(value: usize) -> Self {
-        match value {
-            0 => Self::AggregationNull,
-            1 => Self::Aggregation1,
-            2 => Self::Aggregation2,
-            3 => Self::Aggregation3,
-            4 => Self::Aggregation4,
-            5 => Self::Aggregation5,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl Default for OracleCircuitType {
-    fn default() -> Self {
-        Self::AggregationNull
     }
 }

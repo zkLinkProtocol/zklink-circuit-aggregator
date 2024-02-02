@@ -9,7 +9,6 @@ use zklink_oracle::witness::{OracleOutputDataWitness, OraclePricesSummarizeWitne
 
 #[test]
 fn test_oracle_aggregation_circuit() {
-    use crate::OracleCircuitType::*;
     use zklink_oracle::pyth::PriceOracle;
 
     let data = new_data(2);
@@ -40,16 +39,16 @@ fn test_oracle_aggregation_circuit() {
     let proof: UniformProof<Bn256> = unsafe { std::mem::transmute(proof) };
     let vk: UniformVerificationKey<Bn256> = unsafe { std::mem::transmute(vk) };
     let vks = BTreeMap::from([
-        (AggregationNull, vk.clone()),
-        (Aggregation1, vk.clone()),
-        (Aggregation2, vk.clone()),
-        (Aggregation3, vk.clone()),
-        (Aggregation4, vk.clone()),
-        (Aggregation5, vk),
+        (0, vk.clone()),
+        (1, vk.clone()),
+        (2, vk.clone()),
+        (3, vk.clone()),
+        (4, vk.clone()),
+        (5, vk),
     ]);
     let oracle_aggregation_circuit = OracleAggregationCircuit::generate(
         vec![oracle_inputs_data],
-        vec![(Aggregation1, proof.clone())],
+        vec![(1, proof.clone())],
         vks,
         proof,
     );

@@ -4,9 +4,9 @@ use advanced_circuit_component::traits::{CircuitEmpty, CSAllocatable};
 use zklink_oracle::witness::{OracleOutputData, OraclePricesSummarize};
 use crate::crypto_utils::PaddingCryptoComponent;
 use crate::oracle_aggregation::witness::{
-    OracleAggregationCircuit, OracleAggregationOutputData, OracleCircuitType,
+    OracleAggregationCircuit, OracleAggregationOutputData,
 };
-use crate::{ALL_AGGREGATION_TYPES, check_and_select_vk_commitment, ORACLE_CIRCUIT_TYPES_NUM};
+use crate::{check_and_select_vk_commitment, OracleCircuitType};
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::cs::ConstraintSystem;
 use advanced_circuit_component::franklin_crypto::bellman::{Engine, SynthesisError};
 use advanced_circuit_component::franklin_crypto::plonk::circuit::allocated_num::{AllocatedNum, Num};
@@ -54,6 +54,7 @@ impl<'a, E: Engine> Circuit<E> for OracleAggregationCircuit<'a, E> {
             agg_params,
             padding,
             None,
+            self.vks_set.keys().cloned().collect(),
         );
         let (_public_input, _input_data) =
             aggregate_oracle_proofs(cs, Some(self), &commit_hash, params)?;
@@ -84,6 +85,7 @@ pub fn aggregate_oracle_proofs<
         AggregationParameters<E, T, P, 2, 3>,
         PaddingCryptoComponent<E>,
         Option<[E::G2Affine; 2]>,
+        Vec<OracleCircuitType>,
     ),
 ) -> Result<(AllocatedNum<E>, OracleAggregationOutputData<E>), SynthesisError> {
     let (
@@ -98,6 +100,7 @@ pub fn aggregate_oracle_proofs<
             ..
         },
         g2_elements,
+        aggregation_nums,
     ) = params;
     inscribe_default_range_table_for_bit_width_over_first_three_columns(
         cs,
@@ -111,8 +114,8 @@ pub fn aggregate_oracle_proofs<
     let vks_set = project_ref!(witness, vks_set).cloned();
 
     // prepare vk_commitments circuit variables
-    let mut vk_commitments = Vec::with_capacity(ORACLE_CIRCUIT_TYPES_NUM);
-    for circuit_type in ALL_AGGREGATION_TYPES {
+    let mut vk_commitments = Vec::with_capacity(aggregation_nums.len());
+    for circuit_type in aggregation_nums {
         let circuit_type_num = Num::Constant(IntoFr::<E>::into_fr(circuit_type as u8));
         let vk_commitment = Num::alloc(
             cs,
@@ -142,9 +145,7 @@ pub fn aggregate_oracle_proofs<
                 .map(|a| IntoFr::<E>::into_fr(a[proof_idx].0 as u8)),
         )?;
         let is_padding = {
-            let padding_type = Num::Constant(IntoFr::<E>::into_fr(
-                OracleCircuitType::AggregationNull as u8,
-            ));
+            let padding_type = Num::Constant(IntoFr::<E>::into_fr(0u8));
             Num::equals(cs, &padding_type, &used_circuit_type)?
         };
 
@@ -176,10 +177,7 @@ pub fn aggregate_oracle_proofs<
             let is_equal_or_greater = Boolean::or(cs, &is_equal, &is_greater)?;
             is_correct_earliest_publish_time.push(is_equal_or_greater);
         }
-        let offset = prices_num.mul(
-            cs,
-            &oracle_input_data.prices_summarize.commitment_base_sum,
-        )?;
+        let offset = prices_num.mul(cs, &oracle_input_data.prices_summarize.commitment_base_sum)?;
         let acc_price_commitment = final_price_commitment
             .add(cs, &oracle_input_data.prices_summarize.commitment)?
             .add(cs, &offset)?;
@@ -191,8 +189,7 @@ pub fn aggregate_oracle_proofs<
         )?;
         let new_prices_num = prices_num.add(cs, &oracle_input_data.prices_summarize.num)?;
         prices_num = Num::conditionally_select(cs, &is_padding, &prices_num, &new_prices_num)?;
-        let new_prices_commitment_base_sum =
-            oracle_input_data.prices_summarize.commitment_base_sum;
+        let new_prices_commitment_base_sum = oracle_input_data.prices_summarize.commitment_base_sum;
         prices_commitment_base_sum = Num::conditionally_select(
             cs,
             &is_padding,
@@ -284,7 +281,14 @@ mod tests {
             hash_params: transcript_params,
         };
 
-        let params = (1usize, rns_params, agg_params, padding, None);
+        let params = (
+            1usize,
+            rns_params,
+            agg_params,
+            padding,
+            None,
+            vec![0, 1, 2, 3, 4, 5],
+        );
         aggregate_oracle_proofs(&mut cs, None, &commit_hash, params).unwrap();
         println!("circuit contains {} gates", cs.n());
         assert!(cs.is_satisfied());
