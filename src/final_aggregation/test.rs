@@ -93,6 +93,7 @@ fn test_final_aggregation_circuit_satisfied() {
     let final_aggregation_circuit = create_test_final_aggregation_circuit();
     let mut cs = generate_test_constraint_system();
     final_aggregation_circuit.synthesize(&mut cs).unwrap();
+    println!("Constraints number: {}", cs.n());
     assert!(cs.is_satisfied());
 }
 
@@ -108,13 +109,13 @@ fn test_final_aggregation_circuit_proving_and_verify() {
     >(final_aggregation_circuit, None)
     .unwrap();
 
-    let key_path = PathBuf::from(r"./final_aggregation.key");
+    let key_path = PathBuf::from(r"./final_2_agg.key");
     let vk_file =
         std::fs::File::create(&key_path).expect("can't create file at final verification key path");
     vk.write(vk_file)
         .expect("Failed to save final verification key");
 
-    let proof_path = PathBuf::from(r"./final_aggregation.proof");
+    let proof_path = PathBuf::from(r"./final_2_agg.proof");
     let proof_file =
         std::fs::File::create(&proof_path).expect("can't create file at final proof path");
     proof

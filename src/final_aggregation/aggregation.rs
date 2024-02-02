@@ -21,7 +21,7 @@ use advanced_circuit_component::circuit_structures::traits::CircuitArithmeticRou
 use advanced_circuit_component::circuit_structures::utils::can_not_be_false_if_flagged;
 use advanced_circuit_component::glue::optimizable_queue::{commit_encodable_item, commit_variable_length_encodable_item};
 use advanced_circuit_component::glue::prepacked_long_comparison;
-use advanced_circuit_component::recursion::node_aggregation::{aggregate_generic_inner, NodeAggregationOutputData};
+use advanced_circuit_component::recursion::node_aggregation::aggregate_generic_inner;
 use advanced_circuit_component::recursion::recursion_tree::{AggregationParameters, NUM_LIMBS};
 use advanced_circuit_component::recursion::transcript::TranscriptGadget;
 use advanced_circuit_component::recursion::RANGE_CHECK_TABLE_BIT_WIDTH;
@@ -35,7 +35,9 @@ use advanced_circuit_component::vm::tables::BitwiseLogicTable;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::data_structures::PolyIdentifier;
 use advanced_circuit_component::franklin_crypto::bellman::plonk::better_better_cs::lookup_tables::LookupTableApplication;
 use advanced_circuit_component::franklin_crypto::plonk::circuit::bigint_new::BITWISE_LOGICAL_OPS_TABLE_NAME;
+use advanced_circuit_component::vm::primitives::utils::IntoBytesStrict;
 use crate::block_aggregation::BlockAggregationOutputData;
+use crate::franklin_crypto::plonk::circuit::byte::Byte;
 use crate::key_manager::enforce_commit_vks_commitments;
 
 const MAX_AGGREGATE_NUM: u8 = 5 * 36;
@@ -175,7 +177,11 @@ pub fn final_aggregation<
             Some(data),
         )?);
     }
-    let first_oracle_agg_data = oracle_aggregation_data[0].clone();
+    let first_oracle_agg_data = if oracle_aggregation_data.is_empty() {
+        OracleAggregationOutputData::empty()
+    } else {
+        oracle_aggregation_data.first().cloned().unwrap()
+    };
 
     let mut used_key_commitments = vec![];
     let mut inputs = vec![];
@@ -333,6 +339,32 @@ pub fn final_aggregation<
         let guardian_set_keccak_hash = keccak_output_into_bytes(cs, digest)?;
         UInt256::from_be_bytes_fixed(cs, &guardian_set_keccak_hash)?
     };
+    let aggregation_output_data = [
+        pair_with_generator_x,
+        pair_with_generator_y,
+        pair_with_x_x,
+        pair_with_x_y
+    ]
+        .iter()
+        .map(|coord| {
+            let mut bytes_left = 32;
+            let take_by = 10; // 80 bits
+            let mut le_bytes: Vec<Byte<E>> = vec![];
+            for el in coord.into_iter() {
+                let as_u256 = UInt256::canonical_from_num(cs, &el)?;
+                let as_le_bytes = as_u256.into_le_bytes_strict(cs)?;
+                if bytes_left >= take_by {
+                    le_bytes.extend_from_slice(&as_le_bytes[..take_by]);
+                    bytes_left -= take_by;
+                } else {
+                    le_bytes.extend_from_slice(&as_le_bytes[..bytes_left]);
+                    break;
+                }
+            }
+            let le_bytes = le_bytes.try_into().unwrap();
+            UInt256::from_le_bytes_fixed(cs, &le_bytes)
+        })
+        .collect::<Result<Vec<UInt256<E>>, SynthesisError>>()?;
 
     let public_input_data = FinalAggregationOutputData::<E> {
         total_agg_num: Num::alloc(
@@ -347,12 +379,7 @@ pub fn final_aggregation<
             guardian_set_hash,
             earliest_publish_time: first_oracle_agg_data.earliest_publish_time,
         },
-        aggregation_output_data: NodeAggregationOutputData {
-            pair_with_x_x,
-            pair_with_x_y,
-            pair_with_generator_x,
-            pair_with_generator_y,
-        },
+        aggregation_output_data: aggregation_output_data.try_into().unwrap(),
     };
 
     let bytes = public_input_data.encode_bytes(cs, &keccak_gadget)?;
