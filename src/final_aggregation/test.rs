@@ -44,7 +44,7 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
     let oracle_aggregation_circuit = OracleAggregationCircuit::generate(
         vec![oracle_inputs_data],
         vec![(1, proof.clone())],
-        (0..6).map(|n| (n as u8, vk.clone())).collect(),
+        (0..6).map(|n| (n, vk.clone())).collect(),
         proof,
     );
     let oracle_agg_output = oracle_aggregation_circuit.output.clone().unwrap();

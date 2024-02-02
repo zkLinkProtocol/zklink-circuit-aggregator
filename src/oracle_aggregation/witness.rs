@@ -21,7 +21,7 @@ use derivative::Derivative;
 use std::collections::BTreeMap;
 use zklink_oracle::witness::{OracleOutputData, OracleOutputDataWitness, OraclePricesSummarize};
 
-pub type OracleCircuitType = u8;
+pub type OracleCircuitType = usize;
 
 pub struct OracleAggregationCircuit<'a, E: Engine> {
     pub(crate) oracle_inputs_data: Vec<OracleOutputDataWitness<E>>,
@@ -43,9 +43,9 @@ impl OracleAggregationCircuit<'_, Bn256> {
                 );
                 agg_num
             ],
-            proof_witnesses: vec![(0.into(), UniformProof::empty()); agg_num],
+            proof_witnesses: vec![(0, UniformProof::empty()); agg_num],
             vks_set: (0..total_oracle_type_num)
-                .map(|n| (n as u8, Default::default()))
+                .map(|n| (n, Default::default()))
                 .collect(),
             vk_encoding_witnesses: vec![
                 [Default::default(); VK_ENCODING_LENGTH];
@@ -78,7 +78,7 @@ impl OracleAggregationCircuit<'_, Bn256> {
             );
         }
 
-        let padding_vk = vks.get(&0u8).cloned().unwrap();
+        let padding_vk = vks.get(&0).cloned().unwrap();
         let vks_set = vks
             .into_iter()
             .map(|(t, vk)| (t, VkEncodeInfo::new(vk)))
