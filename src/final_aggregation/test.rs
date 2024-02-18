@@ -85,6 +85,7 @@ fn create_test_final_aggregation_circuit() -> FinalAggregationCircuit<'static, B
         vec![oracle_agg_output],
         vec![(0, oracle_aggregation_proof)],
         BTreeMap::from([(0, oracle_agg_vk)]),
+        true,
     )
 }
 

@@ -282,7 +282,11 @@ pub fn final_aggregation<
     assert_eq!(used_key_commitments.len(), inputs.len());
     assert_eq!(used_key_commitments.len(), num_proofs_aggregated);
     assert_eq!(used_key_commitments.len(), aggregation_proofs.len());
-    oracle_price_commitment.enforce_equal(cs, &block_aggregation_data.final_price_commitment)?;
+
+    if witness.check_oracle_prices {
+        oracle_price_commitment
+            .enforce_equal(cs, &block_aggregation_data.final_price_commitment)?;
+    }
 
     // do actual work
     let [[pair_with_generator_x, pair_with_generator_y], [pair_with_x_x, pair_with_x_y]] =

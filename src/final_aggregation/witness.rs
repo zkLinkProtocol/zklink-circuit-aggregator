@@ -30,6 +30,8 @@ pub struct FinalAggregationCircuit<'a, E: Engine> {
     pub block_vks_set: BTreeMap<usize, VkEncodeInfo<E>>,
 
     pub output: Option<FinalAggregationOutputDataWitness<E>>,
+
+    pub check_oracle_prices: bool,
     pub(crate) params: &'a CommonCryptoParams<E>,
 }
 
@@ -61,6 +63,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
 
             output: None,
             params: &COMMON_CRYPTO_PARAMS,
+            check_oracle_prices: true,
         }
     }
 
@@ -71,6 +74,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
         oracle_aggregation_results: Vec<OracleAggregationOutputDataWitness<Bn256>>,
         oracle_proof: Vec<(usize, UniformProof<Bn256>)>,
         oracle_agg_vks: BTreeMap<usize, VerificationKey<Bn256, UniformCircuit<Bn256>>>,
+        check_oracle_prices: bool,
     ) -> Self {
         assert_eq!(oracle_aggregation_results.len(), oracle_proof.len());
 
@@ -91,6 +95,7 @@ impl FinalAggregationCircuit<'_, Bn256> {
             oracle_vks_set: oracle_vks_commitments_set,
             block_vks_set: block_vks_commitments_set,
             output: None,
+            check_oracle_prices,
             params: &COMMON_CRYPTO_PARAMS,
         };
 
