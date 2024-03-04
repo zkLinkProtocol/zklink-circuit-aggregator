@@ -23,7 +23,7 @@ serde = { version = "1.0.193", features = ["derive"] }
 zklink-oracle = { git = "ssh://git@github.com/zkLinkProtocol/zklink-oracle", branch = "main" }
 
 [dev-dependencies]
-base64 = "0.21.7"
+base64 = "0.22.0"
 
 # Wormhole uses patching to resolve some of its own dependencies. We need to
 # make sure that we use the same patch instead of simply pointing the original
